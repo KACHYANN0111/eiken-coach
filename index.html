@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f5bea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="英検コーチ">
+  <meta name="format-detection" content="telephone=no">
+  <title>英検2級 AI学習コーチ</title>
+  <meta name="description" content="毎日の10分で、英検2級合格に必要な力を伸ばす総合学習アプリ">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="menuBtn" class="menu-btn" aria-label="メニュー">☰</button>
+    <a href="#home" class="brand"><span class="logo">2級</span><span class="name">英検2級 AI学習コーチ</span></a>
+    <span class="top-right"><span id="syncState" class="sync-chip"></span><span id="streakTop" class="streak-top"></span></span>
+  </header>
+  <div class="layout">
+    <nav id="sideNav" class="sidenav" aria-label="メインメニュー"></nav>
+    <div id="scrim" class="scrim"></div>
+    <main id="app" class="main"></main>
+  </div>
+  <nav id="bottomNav" class="bottomnav" aria-label="クイックメニュー"></nav>
+
+  <!-- 設定・共通 -->
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/store.js"></script>
+  <!-- 学習データ（すべてオリジナル） -->
+  <script src="js/data/words-pre2.js"></script>
+  <script src="js/data/words.js"></script>
+  <script src="js/data/words2.js"></script>
+  <script src="js/data/words3.js"></script>
+  <script src="js/data/words4.js"></script>
+  <script src="js/data/words-pre1.js"></script>
+  <script src="js/data/words-pre1b.js"></script>
+  <script src="js/data/words-pre1c.js"></script>
+  <script src="js/data/words-pre1d.js"></script>
+  <script src="js/data/words-1.js"></script>
+  <script src="js/data/words-1b.js"></script>
+  <script src="js/data/words-1c.js"></script>
+  <script src="js/data/words-1d.js"></script>
+  <script src="js/data/phrases.js"></script>
+  <script src="js/data/phrases-grades.js"></script>
+  <script src="js/data/reading.js"></script>
+  <script src="js/data/listening.js"></script>
+  <script src="js/data/writing.js"></script>
+  <script src="js/data/speaking.js"></script>
+  <!-- ロジック -->
+  <script src="js/coach.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/pwa.js"></script>
+  <!-- 画面 -->
+  <script src="js/views/home.js"></script>
+  <script src="js/views/vocab.js"></script>
+  <script src="js/views/reading.js"></script>
+  <script src="js/views/listening.js"></script>
+  <script src="js/views/writing.js"></script>
+  <script src="js/views/speaking.js"></script>
+  <script src="js/views/past.js"></script>
+  <script src="js/views/history.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
