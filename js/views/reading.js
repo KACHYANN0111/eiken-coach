@@ -103,6 +103,7 @@ function readingShortRun(sub, el) {
     const ok = k === q.a; if (ok) score++;
     U.$$('.choice', el).forEach((b, idx) => { b.disabled = true; if (idx === q.a) b.classList.add('correct'); else if (idx === k) b.classList.add('wrong'); });
     readingRecord('short', q, 0, ok);
+    Sound.answer(ok);
     U.$('#fb', el).innerHTML = `<div class="feedback ${ok ? 'ok' : 'ng'}">
       <div class="verdict">${ok ? '⭕ 正解' : '❌ 不正解'}　正解：${q.a + 1}. <span class="en">${U.esc(q.choices[q.a])}</span></div>
       <div class="exp"><b>日本語訳</b><br>${U.esc(q.ja)}</div>
@@ -163,6 +164,7 @@ function readingPassage(type, sub, el) {
     if (cb) cb.onclick = () => {
       checked = true;
       p.qs.forEach((q, qi) => readingRecord(type, p, qi, picks[qi] === q.a));
+      Sound.batch(p.qs.filter((q, qi) => picks[qi] === q.a).length, p.qs.length);
       Store.save();
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });

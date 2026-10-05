@@ -89,6 +89,7 @@ function speakingSet(id, el) {
       const text = ta.value.trim();
       if (!text) return U.toast('回答を入力してください');
       logPart(key, text);
+      Sound.saved();
       const r = await AI.evaluateSpeaking({ part: key, text, start: s.card });
       U.$('.out', box).innerHTML = `<div class="ai-box"><b>💾 記録しました</b>（${U.countWords(text)}語）<ul class="tips">${r.tips.map(t => `<li>${U.esc(t)}</li>`).join('')}</ul></div>`;
       U.$('.model-ans', box).hidden = false;

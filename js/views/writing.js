@@ -114,6 +114,7 @@ function writingTask(type, sub, el) {
     delete Store.data.drafts[p.id];
     Store.save();
     U.toast('回答を保存しました');
+    Sound.saved();
     U.$('#saved', el).innerHTML = `<div class="feedback ok"><div class="verdict">💾 保存しました（${U.countWords(text)}語）</div><p class="small">解答例と比べて、入れるべきポイントが入っているか確認しましょう。</p>${Coach.nextStepHTML('writing')}</div>`;
   };
 

@@ -71,6 +71,7 @@ function listeningRun(part, n, el) {
     if (!ok && pos < 0) rv.push(q.id);
     if (ok && pos >= 0) rv.splice(pos, 1);
     Store.logAnswer('listening', ok);
+    Sound.answer(ok);
     U.$('details.script', el).open = true;
     U.$('#fb', el).innerHTML = `<div class="feedback ${ok ? 'ok' : 'ng'}">
       <div class="verdict">${ok ? '⭕ 正解' : '❌ 不正解'}　正解：${q.a + 1}. <span class="en">${U.esc(q.choices[q.a])}</span></div>

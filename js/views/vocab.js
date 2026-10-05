@@ -127,6 +127,7 @@ async function vocabRun([mode = 'normal', n = '10', format = 'e2j', target, grad
       });
     }
     const stat = Store.recordWord(q.item.id, correct);
+    Sound.answer(correct);
     results.push({ item: q.item, correct });
     const lv = Coach.weakLevel(stat);
     const it = q.item;
@@ -149,6 +150,7 @@ async function vocabRun([mode = 'normal', n = '10', format = 'e2j', target, grad
 
   function finish() {
     const c = results.filter(r => r.correct).length;
+    Sound.finish(U.pct(c, results.length));
     Store.data.tests.push({ date: U.today(), mode, format, grade, n: results.length, correct: c, sec: Math.round((Date.now() - startedAt) / 1000) });
     Store.save();
     const wrong = results.filter(r => !r.correct);
