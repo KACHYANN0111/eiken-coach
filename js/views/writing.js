@@ -3,6 +3,10 @@ const CHECKS = {
   summary: ['重要な内容を入れた', '内容から外れていない', '自分の意見を入れていない', '語数を守った', '文法を確認した', 'スペルを確認した'],
   opinion: ['意見を明確にした', '理由を2つ書いた', '理由を具体的に説明した', 'TOPICからずれていない', '文法を確認した', 'スペルを確認した']
 };
+// 準1級・1級の意見論述はエッセイ形式なので構成のチェックを加える
+const checksFor = (type, g) => type === 'opinion' && g !== '2'
+  ? ['意見を明確にした', g === '1' ? '理由を2〜3つ書いた' : '理由を2つ書いた', '理由を具体的に説明した', '序論・本論・結論の構成にした', 'TOPICからずれていない', '文法・スペルを確認した']
+  : CHECKS[type];
 
 function writingTabs(active) {
   const t = [['#writing', 'top', 'トップ'], ['#writing/summary', 'summary', '英文要約'], ['#writing/opinion', 'opinion', '意見論述'], ['#writing/guide-summary', 'gs', '要約の攻略法'], ['#writing/guide-opinion', 'go', '意見論述の書き方'], ['#writing/history', 'history', '回答履歴']];
@@ -16,24 +20,28 @@ Views.writing = (args, el) => {
   if (type === 'guide-opinion') return guideOpinion(el);
   if (type === 'history') return writingHistory(el);
 
-  const W = Store.data.writing;
-  const L = CONFIG.wordLimits;
-  el.innerHTML = `<h1 class="page">✍️ ライティング</h1>${writingTabs('top')}
+  const g = examGradeId(), E = examOf(g);
+  const W = Store.data.writing.filter(w => gOf(w) === g);
+  const L = E.wordLimits;
+  const [ws, wo] = E.first.writing;
+  el.innerHTML = `<h1 class="page">✍️ ライティング</h1>${examTabsHTML()}${writingTabs('top')}
   <div class="grid2">
-    <a class="card link-card" href="#writing/summary"><small>大問4</small><h2>英文要約</h2><p class="muted small">約150語の英文を ${L.summary.min}〜${L.summary.max}語 で要約</p><p>収録 ${WRITING_DATA.summary.length}問 ／ 練習 ${W.filter(w => w.type === 'summary').length}回</p></a>
-    <a class="card link-card" href="#writing/opinion"><small>大問5</small><h2>意見論述（英作文）</h2><p class="muted small">TOPICに対する意見と理由2つを ${L.opinion.min}〜${L.opinion.max}語 で</p><p>収録 ${WRITING_DATA.opinion.length}問 ／ 練習 ${W.filter(w => w.type === 'opinion').length}回</p></a>
+    <a class="card link-card" href="#writing/summary"><small>${ws.no}</small><h2>英文要約</h2><p class="muted small">${ws.note}。${L.summary.min}〜${L.summary.max}語</p><p>収録 ${ofGrade(WRITING_DATA.summary, g).length}問 ／ 練習 ${W.filter(w => w.type === 'summary').length}回</p></a>
+    <a class="card link-card" href="#writing/opinion"><small>${wo.no}</small><h2>意見論述（英作文）</h2><p class="muted small">${wo.note}。${L.opinion.min}〜${L.opinion.max}語</p><p>収録 ${ofGrade(WRITING_DATA.opinion, g).length}問 ／ 練習 ${W.filter(w => w.type === 'opinion').length}回</p></a>
     <a class="card link-card" href="#writing/guide-summary"><h2>要約の攻略法</h2><p class="muted small">7つのステップで要約の書き方をマスター</p></a>
     <a class="card link-card" href="#writing/guide-opinion"><h2>意見論述の基本構成</h2><p class="muted small">意見 → 理由1 → 理由2 → 結論</p></a>
   </div>
   <p class="muted small">※ 語数の指定は設定値（js/config.js）で管理しています。公式の形式が変わった場合は公式情報を優先してください。</p>`;
+  bindExamTabs(el, () => Views.writing(args, el));
 };
 
 function writingMenu(type, el) {
-  const list = WRITING_DATA[type];
+  const list = ofGrade(WRITING_DATA[type]);
   const W = Store.data.writing;
-  el.innerHTML = `<h1 class="page">✍️ ${type === 'summary' ? '英文要約' : '意見論述'}</h1>${writingTabs(type)}
+  el.innerHTML = `<h1 class="page">✍️ ${type === 'summary' ? '英文要約' : '意見論述'}</h1>${examTabsHTML()}${writingTabs(type)}
   <a class="btn primary block" href="#writing/${type}/auto">おすすめの1問に挑戦</a>
   <div class="plist">${list.map(p => { const n = W.filter(w => w.promptId === p.id).length; return `<a class="card link-card row" href="#writing/${type}/${p.id}"><span class="pill">${U.esc(p.theme)}</span><b>${U.esc(type === 'summary' ? p.title : p.topicJa)}</b><small class="muted">${n ? `練習 ${n}回` : '未挑戦'}</small></a>`; }).join('')}</div>`;
+  bindExamTabs(el, () => writingMenu(type, el));
 }
 
 function writingTask(type, sub, el) {
@@ -41,16 +49,16 @@ function writingTask(type, sub, el) {
   let p;
   if (sub === 'auto') {
     const cnt = id => Store.data.writing.filter(w => w.promptId === id).length;
-    p = U.shuffle(list).sort((a, b) => cnt(a.id) - cnt(b.id))[0];
+    p = U.shuffle(ofGrade(list)).sort((a, b) => cnt(a.id) - cnt(b.id))[0];
   } else p = list.find(x => x.id === sub);
   if (!p) { el.innerHTML = '<div class="card empty">問題が見つかりません。</div>'; return; }
-  const lim = CONFIG.wordLimits[type];
+  const g = gOf(p), lim = examOf(g).wordLimits[type], CK = checksFor(type, g);
   Store.data.drafts = Store.data.drafts || {};
   const draft = Store.data.drafts[p.id] || { text: '', opinion: '' };
   const isSum = type === 'summary';
 
   el.innerHTML = `
-  <div class="quiz-head"><a href="#writing/${type}" class="back">← 戻る</a><span>${isSum ? '英文要約' : '意見論述'}</span><span class="pill">${U.esc(p.theme)}</span></div>
+  <div class="quiz-head"><a href="#writing/${type}" class="back">← 戻る</a><span>${isSum ? '英文要約' : '意見論述'}</span><span>${gradeBadge(g)} <span class="pill">${U.esc(p.theme)}</span></span></div>
   ${isSum ? `
   <div class="card">
     <div class="instr">● 以下の英文を読んで、その内容を英語で要約し、解答欄に記入しなさい。<br>● 語数の目安は${lim.min}語〜${lim.max}語です。<br>● 解答が英文の要約になっていないと判断された場合は、0点と採点されることがあります。英文をよく読んでから答えてください。</div>
@@ -58,7 +66,9 @@ function writingTask(type, sub, el) {
     <details><summary>日本語訳を見る</summary>${p.ja.map(t => `<p class="small">${U.esc(t)}</p>`).join('')}</details>
   </div>` : `
   <div class="card">
-    <div class="instr">● 以下のTOPICについて、あなたの意見とその理由を2つ書きなさい。<br>● POINTSは理由を書く際の参考となる観点を示したものです。ただし、これら以外の観点から理由を書いてもかまいません。<br>● 語数の目安は${lim.min}語〜${lim.max}語です。</div>
+    <div class="instr">${g === '2' ? '● 以下のTOPICについて、あなたの意見とその理由を2つ書きなさい。<br>● POINTSは理由を書く際の参考となる観点を示したものです。ただし、これら以外の観点から理由を書いてもかまいません。'
+      : g === 'p1' ? '● 以下のTOPICについてエッセイを書きなさい。<br>● 以下のPOINTSのうち2つを使って、あなたの意見を支えなさい。<br>● 構成：序論・本論・結論'
+      : '● 以下のTOPICについてエッセイを書きなさい。<br>● 理由を挙げて、あなたの意見を論理的に支えなさい（POINTSは参考となる観点）。<br>● 構成：序論・本論・結論'}<br>● 語数の目安は${lim.min}語〜${lim.max}語です。</div>
     <div class="label">TOPIC</div>
     <p class="topic en">${U.esc(p.topic)}</p>
     <p class="muted small">${U.esc(p.topicJa)}</p>
@@ -72,7 +82,7 @@ function writingTask(type, sub, el) {
     <textarea id="ans" class="answer en" rows="${isSum ? 6 : 10}" placeholder="${isSum ? 'ここに英文要約を書いてください' : '自分の意見と、その理由を書いてください。'}" spellcheck="false">${U.esc(draft.text)}</textarea>
     <div id="wc" class="wc"></div>
     <div class="label">自己チェック</div>
-    <div class="checks">${CHECKS[type].map((c, i) => `<label><input type="checkbox" data-i="${i}"> ${c}</label>`).join('')}</div>
+    <div class="checks">${CK.map((c, i) => `<label><input type="checkbox" data-i="${i}"> ${c}</label>`).join('')}</div>
     <div class="btn-row">
       <button class="btn" id="aiBtn">🤖 簡易チェック</button>
       <button class="btn primary" id="saveBtn">回答を保存</button>
@@ -98,7 +108,7 @@ function writingTask(type, sub, el) {
   U.$$('#op button', el).forEach(b => b.onclick = () => { opinion = b.dataset.v; U.$$('#op button', el).forEach(x => x.classList.toggle('on', x === b)); update(); });
 
   U.$('#aiBtn', el).onclick = async () => {
-    const r = await AI.reviewWriting({ type, text: ta.value, source: isSum ? p.text.join(' ') : '', opinion });
+    const r = await AI.reviewWriting({ type, text: ta.value, source: isSum ? p.text.join(' ') : '', opinion, limits: lim, grade: g });
     U.$('#aiOut', el).innerHTML = `<div class="ai-box"><b>簡易チェック結果</b> <small class="muted">（ローカル判定・将来AI添削に置き換え可能）</small>
       ${r.good.length ? `<ul class="good">${r.good.map(t => `<li>✓ ${U.esc(t)}</li>`).join('')}</ul>` : ''}
       ${r.tips.length ? `<ul class="tips">${r.tips.map(t => `<li>▲ ${U.esc(t)}</li>`).join('')}</ul>` : '<p>形式面の問題は見つかりませんでした。</p>'}</div>`;
@@ -108,8 +118,8 @@ function writingTask(type, sub, el) {
     const text = ta.value.trim();
     if (!text) return U.toast('回答を入力してください');
     if (!isSum && !opinion) return U.toast('YOUR OPINION（Agree / Disagree）を選んでください');
-    const checks = U.$$('.checks input', el).map((c, i) => ({ label: CHECKS[type][i], ok: c.checked }));
-    Store.data.writing.push({ type, promptId: p.id, title: isSum ? p.title : p.topic, text, words: U.countWords(text), opinion, checks, date: U.today(), time: new Date().toTimeString().slice(0, 5) });
+    const checks = U.$$('.checks input', el).map((c, i) => ({ label: CK[i], ok: c.checked }));
+    Store.data.writing.push({ type, grade: g, promptId: p.id, title: isSum ? p.title : p.topic, text, words: U.countWords(text), opinion, checks, date: U.today(), time: new Date().toTimeString().slice(0, 5) });
     Store.day().writing++;
     delete Store.data.drafts[p.id];
     Store.save();
@@ -153,10 +163,10 @@ function opinionModelHTML(p) {
 }
 
 function guideSummary(el) {
-  const L = CONFIG.wordLimits.summary;
+  const L = examOf().wordLimits.summary;
   const steps = [
     ['文章全体を読む', 'まずは細部にこだわらず、最後まで一気に読みます。何について書かれた文章か（テーマ）をつかみましょう。'],
-    ['中心となる内容を探す', '各段落の役割を確認します。2級の要約問題は「導入（テーマ）→ 利点・理由 → 欠点・問題点／解決策」のような構成が多いです。各段落の要点を一言でまとめます。'],
+    ['中心となる内容を探す', '各段落の役割を確認します。英検の要約問題は「導入（テーマ）→ 利点・理由 → 欠点・問題点／解決策」のような構成が多いです。各段落の要点を一言でまとめます。'],
     ['重要なポイントを整理する', '「何が」「なぜ」「どうなる」を軸に、要約に必ず入れるポイントを2〜3個に絞ります。'],
     ['具体例など不要な細部を削る', 'For example 以降の具体例、人名・数字・固有名詞、繰り返しの説明は原則として削ります。具体例は「抽象的な言葉」にまとめます（例：smartphones, tablets → digital devices）。'],
     ['自分の言葉でまとめる', '本文の表現をそのまま並べるのではなく、言い換え（パラフレーズ）を使います。However / Therefore / On the other hand などで段落同士の関係を示すと論理的になります。'],
@@ -190,10 +200,10 @@ function guideSummary(el) {
 }
 
 function guideOpinion(el) {
-  const L = CONFIG.wordLimits.opinion;
+  const E = examOf(), L = E.wordLimits.opinion;
   el.innerHTML = `<h1 class="page">✍️ 意見論述の基本構成</h1>${writingTabs('go')}
   <div class="card">
-    <p>英検2級の意見論述は、TOPICに対して<b>自分の意見と理由2つ</b>を ${L.min}〜${L.max}語 で書きます。まずは次の4つのパーツで組み立てましょう。</p>
+    <p>英検${E.name}の意見論述は、TOPICに対して<b>自分の意見と理由</b>を ${L.min}〜${L.max}語 で書きます（${E.name === '2級' ? '理由は2つ' : '序論・本論・結論のエッセイ形式'}）。まずは次の4つのパーツで組み立てましょう。${E.name !== '2級' ? `${E.name}では、各段落を「主張 → 具体的な説明・例 → まとめ」で厚くし、語数を満たします。` : ''}</p>
     <div class="structure">
       <div><span>① 意見</span><p class="en">I agree with this idea. / I do not think that ~.</p><small>TOPICに対する賛成・反対を最初にはっきり書く（1文）</small></div>
       <div><span>② 理由1</span><p class="en">First, ~. For example, ~.</p><small>理由＋具体的な説明・例（2〜3文）</small></div>

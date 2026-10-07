@@ -54,6 +54,7 @@ function render(route) {
   try { Views[view](args, el); }
   catch (e) { console.error(e); el.innerHTML = `<div class="card empty">画面の表示中にエラーが発生しました。<br><small>${U.esc(e.message)}</small><br><a class="btn" href="#home">ホームへ</a></div>`; }
   window.scrollTo(0, 0);
+  const logo = U.$('.brand .logo'); if (logo) logo.textContent = examOf().name;
   const st = Store.streak();
   U.$('#streakTop').textContent = st ? `🔥${st}日` : '';
 }

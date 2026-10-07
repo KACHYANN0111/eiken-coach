@@ -115,7 +115,7 @@ const Coach = {
       return Object.entries(g).map(([k, v]) => ({ key: k, name: names[k] || k, rate: rate(v.c, v.n), n: v.n })).sort((a, b) => a.rate - b.rate);
     };
     const readingTypes = groupRate(D.reading, 'type', { short: '短文の語句空所補充', long: '長文の語句空所補充', content: '長文の内容一致' });
-    const listeningParts = groupRate(D.listening, 'part', { 1: '第1部 会話の内容一致', 2: '第2部 文の内容一致' });
+    const listeningParts = groupRate(D.listening, 'part', { 1: '第1部 会話の内容一致', 2: '第2部 文の内容一致', 3: '第3部 Real-Life形式', 4: '第4部 インタビュー' });
 
     // ライティング：自己チェックでチェックされなかった項目
     const miss = {};
@@ -153,22 +153,23 @@ const Coach = {
     const rt = a.readingTypes.find(t => t.n >= 3 && t.rate < 0.7);
     const readType = rt ? rt.key : ['short', 'long', 'content'][new Date().getDate() % 3];
     const readLabel = { short: '短文の語句空所補充 5問', long: '長文の語句空所補充 1題', content: '長文の内容一致 1題' }[readType];
-    steps.push({ kind: 'reading', label: 'リーディング：' + readLabel, route: '#reading/' + readType + '/auto', area: 'reading', reason: rt ? `正答率${Math.round(rt.rate * 100)}%の苦手形式` : '形式をローテーション' });
+    steps.push({ kind: 'reading', label: `${examOf().name}リーディング：` + readLabel, route: '#reading/' + readType + '/auto', area: 'reading', reason: rt ? `正答率${Math.round(rt.rate * 100)}%の苦手形式` : '形式をローテーション' });
 
-    const lp = a.listeningParts.find(t => t.n >= 3 && t.rate < 0.7);
-    const part = lp ? lp.key : (new Date().getDate() % 2) + 1;
-    steps.push({ kind: 'listening', label: `リスニング 5問（第${part}部）`, route: `#listening/run/${part}/5`, area: 'listening', reason: lp ? `正答率${Math.round(lp.rate * 100)}%の苦手パート` : 'リスニング力を毎日キープ' });
+    const EX = examOf(), parts = EX.first.listening.map(p => String(p.part));
+    const lp = a.listeningParts.find(t => t.n >= 3 && t.rate < 0.7 && parts.includes(String(t.key)));
+    const part = lp ? lp.key : parts[new Date().getDate() % parts.length];
+    steps.push({ kind: 'listening', label: `${EX.name}リスニング 5問（第${part}部）`, route: `#listening/run/${part}/5`, area: 'listening', reason: lp ? `正答率${Math.round(lp.rate * 100)}%の苦手パート` : 'リスニング力を毎日キープ' });
 
     const week = U.addDays(U.today(), -7);
     const recent = D.writing.filter(w => w.date >= week);
     const sumN = recent.filter(w => w.type === 'summary').length, opN = recent.filter(w => w.type === 'opinion').length;
     steps.push(sumN <= opN
-      ? { kind: 'writing', label: '英文要約 1問', route: '#writing/summary/auto', area: 'writing', reason: `今週の要約練習 ${sumN}回` }
-      : { kind: 'writing', label: '意見論述 1問', route: '#writing/opinion/auto', area: 'writing', reason: `今週の意見論述 ${opN}回` });
+      ? { kind: 'writing', label: `${examOf().name}英文要約 1問`, route: '#writing/summary/auto', area: 'writing', reason: `今週の要約練習 ${sumN}回` }
+      : { kind: 'writing', label: `${examOf().name}意見論述 1問`, route: '#writing/opinion/auto', area: 'writing', reason: `今週の意見論述 ${opN}回` });
 
     const lastSp = D.speaking.length ? D.speaking[D.speaking.length - 1].date : null;
     if (!lastSp || U.daysBetween(lastSp, U.today()) >= 3) {
-      steps.push({ kind: 'speaking', label: '二次試験 面接1セット', route: '#speaking/auto', area: 'speaking', reason: lastSp ? '3日以上スピーキング練習なし' : 'まだ面接練習をしていません' });
+      steps.push({ kind: 'speaking', label: `${examOf().name}二次試験 面接1セット`, route: '#speaking/auto', area: 'speaking', reason: lastSp ? '3日以上スピーキング練習なし' : 'まだ面接練習をしていません' });
     }
 
     // 苦手分野（正答率の低い分野）を先頭へ。単語は常に最初の方に置く
@@ -214,3 +215,14 @@ const Coach = {
   READING_DATA.long.forEach(p => p.qs.forEach(mix));
   LISTENING_DATA.forEach(mix);
 })();
+
+/* ---------- 級の切り替え（リーディング・リスニング・ライティング・スピーキング共通） ---------- */
+const gOf = x => (x && x.grade) || CONFIG.defaultGrade;
+const ofGrade = (list, g = examGradeId()) => list.filter(x => gOf(x) === g);
+function examTabsHTML() {
+  const cur = examGradeId();
+  return `<div class="grade-grid exam-tabs">${CONFIG.examGradeIds.map(id => `<button type="button" class="grade-tile g-${id} ${id === cur ? 'on' : ''}" data-exam="${id}"><b>${CONFIG.exams[id].name}</b><small>${CONFIG.exams[id].level}</small></button>`).join('')}</div>`;
+}
+function bindExamTabs(el, rerender) {
+  U.$$('[data-exam]', el).forEach(b => b.onclick = () => { Store.setSetting('examGrade', b.dataset.exam); rerender(); });
+}

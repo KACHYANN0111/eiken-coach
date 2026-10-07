@@ -12,7 +12,7 @@ const Store = (() => {
   const defaults = () => ({
     version: 2,
     updatedAt: 0,
-    settings: { grade: CONFIG.defaultGrade, sfx: true, voice: true, mascot: true, character: 'mirai', volume: 0.8, muted: false },
+    settings: { grade: CONFIG.defaultGrade, examGrade: CONFIG.defaultGrade, sfx: true, voice: true, mascot: true, character: 'mirai', volume: 0.8, muted: false },
     wordStats: {},        // id -> {c, w, streak, lastAsked, lastWrong, lastCorrect}
     days: {},             // YYYY-MM-DD -> 日別集計
     tests: [],            // 単語テスト結果

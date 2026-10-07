@@ -13,8 +13,8 @@ const AI = (() => {
     },
 
     // AIによるライティング添削（ローカル：形式チェック）
-    async reviewWriting({ type, text, source = '', opinion = '' }) {
-      const lim = CONFIG.wordLimits[type];
+    async reviewWriting({ type, text, source = '', opinion = '', limits = null }) {
+      const lim = limits || examOf().wordLimits[type];
       const n = U.countWords(text);
       const sentences = text.split(/[.!?]+\s/).filter(s => s.trim()).length;
       const low = text.toLowerCase();
@@ -61,20 +61,36 @@ const AI = (() => {
     async makeStudyPlan() { return Coach.recommend(); },
 
     // AIによるスピーキング評価（ローカル：形式チェック）
-    async evaluateSpeaking({ part, text, start = '' }) {
+    async evaluateSpeaking({ part, text, start = '', grade = '2' }) {
       const n = U.countWords(text), low = text.toLowerCase(), tips = [];
+      const past = /\b(was|were|did|went|said|decided|told|saw|had|\w+ed)\b/.test(low);
+      const stance = /\b(i think|i don't think|i believe|i agree|i disagree|in my opinion|yes|no)\b/.test(low);
+      const reason = /\b(because|this is because|for example|for instance|so|therefore|as a result)\b/.test(low);
       if (n === 0) return { tips: ['回答を入力しましょう。'], engine: 'local' };
-      if (part === 'q1') { if (n < 12) tips.push('No.1 は本文の該当箇所を使い、1〜2文で答えましょう。'); if (/^because/i.test(text.trim())) tips.push('Why の質問でも「By doing ...」「Because ...」で始めてOK。主語・動詞のある完全な文にするとより良いです。'); }
-      if (part === 'q2') {
+      if (part === 'narration') {
+        if (start && !low.startsWith(start.toLowerCase().slice(0, 12))) tips.push('ナレーションはカードに書かれた文で話し始めましょう。');
+        if (n < 90) tips.push('2分間のナレーションでは、4コマそれぞれ2〜3文、合計100〜150語程度が目安です。');
+        if (!past) tips.push('物語は過去形で説明しましょう。');
+        if (!/\b(the next day|later|that evening|a few days later|a week later|when|then)\b/.test(low)) tips.push('「The next day, ...」「That evening, ...」など、コマの時間表示を使って場面をつなぎましょう。');
+      } else if (part === 'speech') {
+        if (n < 150) tips.push('2分間のスピーチは200〜260語程度が目安です。理由や具体例を足しましょう。');
+        if (n > 300) tips.push('2分を超えると途中で止められます。300語以内に収めましょう。');
+        if (!stance) tips.push('最初に自分の立場をはっきり述べましょう（I believe that ... / I do not think that ...）。');
+        if (!/\b(first|second|another|in addition|moreover)\b/.test(low)) tips.push('理由を「First, ... Second, ...」で整理すると聞き手に伝わりやすくなります。');
+        if (!/\b(in conclusion|for these reasons|to sum up|therefore)\b/.test(low)) tips.push('最後に結論（In conclusion, ...）で主張をもう一度まとめましょう。');
+      } else if (grade === '2' && part === 'q1') {
+        if (n < 12) tips.push('No.1 は本文の該当箇所を使い、1〜2文で答えましょう。');
+        if (/^because/i.test(text.trim())) tips.push('Why の質問でも「By doing ...」「Because ...」で始めてOK。主語・動詞のある完全な文にするとより良いです。');
+      } else if (grade === '2' && part === 'q2') {
         if (start && !low.startsWith(start.toLowerCase().slice(0, 12))) tips.push('No.2 はカードに書かれた文で話し始めましょう。');
         if (n < 40) tips.push('3コマそれぞれについて1〜2文ずつ、合計5〜6文程度で説明しましょう。');
-        if (!/\b(was|were|did|went|said|decided|\w+ed)\b/.test(low)) tips.push('過去形で物語を説明しましょう。');
+        if (!past) tips.push('過去形で物語を説明しましょう。');
+      } else {
+        if (!stance) tips.push('最初に自分の立場（I think ... / Yes. / No.）を述べましょう。');
+        if (!reason) tips.push('理由（because ... / For example, ...）を付け加えましょう。');
+        if (grade !== '2' && n < 30) tips.push(`${grade === '1' ? '1級' : '準1級'}の質問には、意見＋理由＋具体例で3〜4文（40語前後）答えるのが目安です。`);
       }
-      if (part === 'q3' || part === 'q4') {
-        if (!/\b(i think|i don't think|i agree|i disagree|yes|no)\b/.test(low)) tips.push('最初に自分の立場（I think ... / Yes. / No.）を述べましょう。');
-        if (!/\b(because|so|this is because|for example)\b/.test(low)) tips.push('理由（because ... / For example, ...）を2文程度で付け加えましょう。');
-      }
-      if (!tips.length) tips.push('よく書けています。声に出して、30秒以内でスムーズに言えるか練習しましょう。');
+      if (!tips.length) tips.push('よく書けています。声に出して、時間内にスムーズに言えるか練習しましょう。');
       return { words: n, tips, engine: 'local' };
     },
 

@@ -3,36 +3,40 @@
  * 将来 AI 音声を使う場合は item.audio に生成音声のURLを入れるだけで対応できる。 */
 Views.listening = (args, el) => {
   if (args[0] === 'run') return listeningRun(args[1], args[2], el);
-  const L = Store.data.listening;
+  const g = examGradeId(), E = examOf(g);
+  const L = Store.data.listening.filter(r => gOf(r) === g);
   const by = p => { const l = L.filter(r => r.part == p); return l.length ? `${U.pct(l.filter(r => r.correct).length, l.length)}%（${l.length}問）` : '未学習'; };
-  const rv = Store.data.listeningReview;
+  const rv = Store.data.listeningReview.filter(id => { const q = LISTENING_DATA.find(x => x.id === id); return q && gOf(q) === g; });
+  const desc = { 1: '2人の会話を聞き、その内容についての質問に答えます。', 2: 'ナレーション（説明文・物語）を聞き、質問に答えます。', 3: '画面の「状況」と「質問」を先に読んでから、アナウンスや留守番電話などを聞いて答えます。', 4: '専門家などへのインタビューを聞き、内容についての質問に答えます。' };
   el.innerHTML = `
   <h1 class="page">🎧 リスニング</h1>
-  <p class="muted">本番は約${CONFIG.exam.first.listeningMinutes}分・放送は1回。選択肢を先に読んで、聞くポイントを予測しましょう。</p>
+  ${examTabsHTML()}
+  <p class="muted">${E.name}の本番は約${E.first.listeningMinutes}分・放送は1回。選択肢を先に読んで、聞くポイントを予測しましょう。</p>
   <div class="grid2">
-    ${CONFIG.exam.first.listening.map((p, i) => `
+    ${E.first.listening.map(p => { const n = ofGrade(LISTENING_DATA, g).filter(x => x.part === p.part).length; return `
       <div class="card">
         <small>${p.no}・本番${p.count}問</small><h2>${p.name}</h2>
-        <p class="muted small">${i === 0 ? '男女2人の会話を聞き、その内容についての質問に答えます。' : '60語前後のナレーション（物語・説明文・アナウンス）を聞き、質問に答えます。'}</p>
-        <p>収録：${LISTENING_DATA.filter(x => x.part === i + 1).length}問 ／ 正答率：<b>${by(i + 1)}</b></p>
-        <div class="seg">${[5, 10, 15].map(n => `<a class="btn" href="#listening/run/${i + 1}/${n}">${n}問</a>`).join('')}</div>
-      </div>`).join('')}
+        <p class="muted small">${desc[p.part]}</p>
+        <p>収録：${n}問 ／ 正答率：<b>${by(p.part)}</b></p>
+        <div class="seg">${[5, 10, 15].filter(c => c <= Math.max(5, n)).map(c => `<a class="btn" href="#listening/run/${p.part}/${c}">${c}問</a>`).join('')}</div>
+      </div>`; }).join('')}
   </div>
   <div class="card">
     <h2>復習（間違えた問題）</h2>
-    ${rv.length ? `<p>${rv.length}問あります。</p><a class="btn primary" href="#listening/run/review/${rv.length}">復習する</a>` : '<p class="muted">間違えた問題はここに自動で追加されます。</p>'}
+    ${rv.length ? `<p>${E.name}：${rv.length}問あります。</p><a class="btn primary" href="#listening/run/review/${rv.length}">復習する</a>` : '<p class="muted">間違えた問題はここに自動で追加されます。</p>'}
   </div>
   <div class="card small muted">
     🔊 音声はブラウザ内蔵の読み上げ機能で再生します（インターネット通信・API不要）。読み上げに対応していない環境では「スクリプトを表示」で練習できます。将来、音声ファイルやAI音声に差し替え可能な構造です。
   </div>`;
+  bindExamTabs(el, () => Views.listening(args, el));
 };
 
 function listeningRun(part, n, el) {
   let pool;
-  if (part === 'review') pool = LISTENING_DATA.filter(x => Store.data.listeningReview.includes(x.id));
+  if (part === 'review') pool = ofGrade(LISTENING_DATA).filter(x => Store.data.listeningReview.includes(x.id));
   else {
     const hist = {}; Store.data.listening.forEach((h, i) => hist[h.id] = { i, ok: h.correct });
-    pool = U.shuffle(LISTENING_DATA.filter(x => x.part === +part))
+    pool = U.shuffle(ofGrade(LISTENING_DATA).filter(x => x.part === +part))
       .sort((a, b) => (hist[a.id] ? (hist[a.id].ok ? 2 : 1) : 0) - (hist[b.id] ? (hist[b.id].ok ? 2 : 1) : 0));
   }
   const qs = pool.slice(0, +n || 5);
@@ -41,12 +45,14 @@ function listeningRun(part, n, el) {
 
   function render() {
     const q = qs[i];
+    const pinfo = examOf(gOf(q)).first.listening.find(p => p.part === q.part) || { name: '' };
     Speech.stop();
     el.innerHTML = `
-    <div class="quiz-head"><a href="#listening" class="back">← 戻る</a><span>第${q.part}部 ${q.part === 1 ? '会話の内容一致' : '文の内容一致'}</span><span>${i + 1} / ${qs.length}</span></div>
+    <div class="quiz-head"><a href="#listening" class="back">← 戻る</a><span>第${q.part}部 ${pinfo.name.replace('選択', '')}</span><span>${i + 1} / ${qs.length}</span></div>
     <div class="progress"><i style="width:${(i / qs.length) * 100}%"></i></div>
     <div class="card quiz">
-      <div class="qmeta"><span class="pill">${U.esc(q.theme)}</span></div>
+      <div class="qmeta">${gradeBadge(gOf(q))}<span class="pill">${U.esc(q.theme)}</span></div>
+      ${q.situation ? `<div class="situation"><div class="label">Situation（状況）</div><p class="en">${U.esc(q.situation)}</p><div class="label">Question（質問）</div><p class="en"><b>${U.esc(q.q)}</b></p><p class="small muted">本番では、状況と質問を読む時間（10秒）のあとに放送が流れます。</p></div>` : ''}
       <div class="audio-box">
         <button class="btn primary" id="playBtn">▶ 音声を再生</button>
         <button class="btn" id="slowBtn">ゆっくり再生</button>
@@ -56,7 +62,7 @@ function listeningRun(part, n, el) {
       <div class="choices">${q.choices.map((c, k) => `<button class="choice en" data-k="${k}"><span class="lbl">${k + 1}</span>${U.esc(c)}</button>`).join('')}</div>
       <div id="fb"></div>
     </div>`;
-    const play = rate => Speech.play([...q.script, { sp: 'N', t: 'Question. ' + q.q }], { rate, audio: q.audio });
+    const play = rate => Speech.play(q.situation ? q.script : [...q.script, { sp: 'N', t: 'Question. ' + q.q }], { rate, audio: q.audio });
     U.$('#playBtn', el).onclick = () => play(0.95);
     U.$('#slowBtn', el).onclick = () => play(0.75);
     U.$$('.choice', el).forEach(b => b.onclick = () => answer(+b.dataset.k));
@@ -66,7 +72,7 @@ function listeningRun(part, n, el) {
     const q = qs[i];
     const ok = k === q.a; if (ok) score++;
     U.$$('.choice', el).forEach((b, idx) => { b.disabled = true; if (idx === q.a) b.classList.add('correct'); else if (idx === k) b.classList.add('wrong'); });
-    Store.data.listening.push({ id: q.id, part: q.part, theme: q.theme, correct: ok, date: U.today() });
+    Store.data.listening.push({ id: q.id, part: q.part, grade: gOf(q), theme: q.theme, correct: ok, date: U.today() });
     const rv = Store.data.listeningReview, pos = rv.indexOf(q.id);
     if (!ok && pos < 0) rv.push(q.id);
     if (ok && pos >= 0) rv.splice(pos, 1);
@@ -91,5 +97,5 @@ function listeningRun(part, n, el) {
 }
 
 function scriptHTML(q) {
-  return `<div class="dialog">${q.script.map(l => `<p class="en"><b>${l.sp === 'N' ? '' : l.sp === 'W' ? '☆ ' : '★ '}</b>${U.esc(l.t)}</p>`).join('')}</div>`;
+  return `<div class="dialog">${q.situation ? `<p class="small muted">Situation: <span class="en">${U.esc(q.situation)}</span></p>` : ''}${q.script.map(l => `<p class="en"><b>${l.name ? U.esc(l.name) + ': ' : l.sp === 'N' ? '' : l.sp === 'W' ? '☆ ' : '★ '}</b>${U.esc(l.t)}</p>`).join('')}</div>`;
 }

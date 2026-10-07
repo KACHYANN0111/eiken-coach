@@ -439,3 +439,20 @@ textarea.answer { font-family: var(--en); font-size: 1.05rem; line-height: 1.7; 
 .char-lines { color: var(--text); margin-top: 4px; }
 .char-card .btn-row { margin-top: 8px; }
 .char-card .btn { flex: 1; min-height: 42px; padding: 8px 10px; }
+
+.situation { background: var(--warn-soft); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+.situation p { margin: 2px 0 8px; }
+.exam-tabs { margin-bottom: 14px; }
+
+/* ---------- 準1級・1級の二次試験 ---------- */
+.panels.p4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 760px) { .panels.p4 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 420px) { .panels.p4 { grid-template-columns: 1fr; } }
+.panel .ptime { font-size: .72rem; font-weight: 700; color: var(--primary); margin: 0 0 2px 18px; text-align: left; }
+.topics { padding-left: 1.4em; margin: 6px 0 10px; }
+.topics li { margin-bottom: 8px; font-weight: 600; }
+.topics li.model-topic { color: var(--primary); }
+.exam-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.exam-tabs .grade-tile { min-height: 0; padding: 8px 10px; border-left-width: 5px; }
+.exam-tabs .grade-tile b { font-size: 1rem; }
+.exam-tabs .grade-tile small { font-size: .7rem; }

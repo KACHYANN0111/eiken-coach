@@ -12,7 +12,7 @@ function readingTabs(active) {
 
 function readingRecord(type, item, qIndex, correct) {
   const key = type === 'short' ? item.id : `${item.id}#${qIndex}`;
-  Store.data.reading.push({ id: key, type, theme: item.theme, correct, date: U.today() });
+  Store.data.reading.push({ id: key, type, grade: gOf(item), theme: item.theme, correct, date: U.today() });
   const rv = Store.data.readingReview;
   const pos = rv.indexOf(key);
   if (!correct && pos < 0) rv.push(key);
@@ -40,18 +40,21 @@ Views.reading = (args, el) => {
   if (type === 'long' || type === 'content') return sub ? readingPassage(type, sub, el) : readingMenu(type, el);
   if (type === 'review') return readingReview(el);
 
-  const R = Store.data.reading;
+  const g = examGradeId(), E = examOf(g);
+  const R = Store.data.reading.filter(r => gOf(r) === g);
   const by = t => { const l = R.filter(r => r.type === t); return l.length ? `${U.pct(l.filter(r => r.correct).length, l.length)}%（${l.length}問）` : '未学習'; };
+  const longs = t => ofGrade(READING_DATA.long, g).filter(p => p.type === t);
   el.innerHTML = `
   <h1 class="page">📖 リーディング</h1>
+  ${examTabsHTML()}
   ${readingTabs('top')}
-  <p class="muted">英検2級のリーディングは、リーディング・ライティング合わせて${CONFIG.exam.first.readingWritingMinutes}分。すべてオリジナル問題です。</p>
+  <p class="muted">英検${E.name}のリーディングは、リーディング・ライティング合わせて${E.first.readingWritingMinutes}分。すべてオリジナル問題です。</p>
   <div class="grid3">
-    ${CONFIG.exam.first.reading.map(r => `
+    ${E.first.reading.map(r => `
       <a class="card link-card" href="#reading/${r.id}">
         <small>${r.no}・本番${r.count}問</small><h2>${r.name}</h2>
         <p class="muted small">${r.note}</p>
-        <p>収録：${r.id === 'short' ? READING_DATA.short.length + '問' : READING_DATA.long.filter(p => p.type === r.id).length + '題（' + READING_DATA.long.filter(p => p.type === r.id).reduce((a, p) => a + p.qs.length, 0) + '問）'}</p>
+        <p>収録：${r.id === 'short' ? ofGrade(READING_DATA.short, g).length + '問' : longs(r.id).length + '題（' + longs(r.id).reduce((a, p) => a + p.qs.length, 0) + '問）'}</p>
         <p class="small">あなたの正答率：<b>${by(r.id)}</b></p>
       </a>`).join('')}
   </div>
@@ -62,28 +65,35 @@ Views.reading = (args, el) => {
       <li><b>大問2</b>：空所の前後の文の「つながり」（逆接・因果・例示）を見る。接続表現（However / As a result / For example）の問題も頻出。</li>
       <li><b>大問3</b>：先に設問を読み、本文の該当段落を探す。本文の言い換え（パラフレーズ）になっている選択肢が正解になりやすい。</li>
     </ul>
+    ${g !== '2' ? `<p>${E.name}は語彙レベルが高く、長文も長くなります。大問1は単語力が得点を左右するので、「単語」の${E.name}テストとあわせて練習しましょう。</p>` : ''}
   </div>`;
+  bindExamTabs(el, () => Views.reading(args, el));
 };
 
 function readingMenu(type, el) {
   const T = READ_TYPES[type];
+  const E = examOf(), rerender = () => readingMenu(type, el);
+  const info = E.first.reading.find(r => r.id === type);
   if (type === 'short') {
-    el.innerHTML = `<h1 class="page">📖 ${T.name}</h1>${readingTabs('short')}
-    <div class="card"><p>空所に入る最も適切な語句を4つの選択肢から選びます（本番：${T.no}・17問）。収録 ${READING_DATA.short.length}問。</p>
-    <div class="seg">${[5, 10, 17].map(n => `<a class="btn" href="#reading/short/${n}">${n}問</a>`).join('')}</div></div>`;
+    const n = ofGrade(READING_DATA.short).length;
+    el.innerHTML = `<h1 class="page">📖 ${T.name}</h1>${examTabsHTML()}${readingTabs('short')}
+    <div class="card"><p>空所に入る最も適切な語句を4つの選択肢から選びます（${E.name}本番：${T.no}・${info.count}問）。収録 ${n}問。</p>
+    <div class="seg">${[5, 10, info.count].filter((v, i, a) => a.indexOf(v) === i).map(c => `<a class="btn" href="#reading/short/${c}">${c}問</a>`).join('')}</div></div>`;
+    bindExamTabs(el, rerender);
     return;
   }
-  const list = READING_DATA.long.filter(p => p.type === type);
+  const list = ofGrade(READING_DATA.long).filter(p => p.type === type);
   const done = id => Store.data.reading.filter(r => r.id.startsWith(id + '#'));
-  el.innerHTML = `<h1 class="page">📖 ${T.name}</h1>${readingTabs(type)}
-  <p class="muted">${type === 'long' ? '長文の空所に入る最も適切な語句を選びます（本番：2題×3問）。' : 'Eメールや説明文を読み、内容に合うものを選びます（本番：Eメール1題＋説明文1題・計8問）。'}</p>
+  el.innerHTML = `<h1 class="page">📖 ${T.name}</h1>${examTabsHTML()}${readingTabs(type)}
+  <p class="muted">${E.name}本番：${info.note}。${type === 'long' ? '長文の空所に入る最も適切な語句を選びます。' : '長文を読み、内容に合うものを選びます。'}</p>
   <a class="btn primary block" href="#reading/${type}/auto">おすすめの1題を解く</a>
   <div class="plist">${list.map(p => { const d = done(p.id); return `<a class="card link-card row" href="#reading/${type}/${p.id}"><span class="pill">${U.esc(p.theme)}</span><b>${U.esc(p.title)}</b>${p.format === 'email' ? '<span class="pill">Eメール</span>' : ''}<small class="muted">${d.length ? `正答 ${d.filter(r => r.correct).length}/${d.length}` : '未挑戦'}</small></a>`; }).join('')}</div>`;
+  bindExamTabs(el, rerender);
 }
 
 function readingShortRun(sub, el) {
   const n = sub === 'auto' ? 5 : +sub || 5;
-  const qs = sub.startsWith('id:') ? READING_DATA.short.filter(q => q.id === sub.slice(3)) : readingPriority(READING_DATA.short, x => [x.id]).slice(0, n);
+  const qs = sub.startsWith('id:') ? READING_DATA.short.filter(q => q.id === sub.slice(3)) : readingPriority(ofGrade(READING_DATA.short), x => [x.id]).slice(0, n);
   let i = 0, score = 0;
   function render() {
     const q = qs[i];
@@ -91,7 +101,7 @@ function readingShortRun(sub, el) {
     <div class="quiz-head"><a href="#reading/short" class="back">← 戻る</a><span>短文の語句空所補充</span><span>${i + 1} / ${qs.length}</span></div>
     <div class="progress"><i style="width:${(i / qs.length) * 100}%"></i></div>
     <div class="card quiz">
-      <div class="qmeta"><span class="pill">${U.esc(q.theme)}</span></div>
+      <div class="qmeta">${gradeBadge(gOf(q))}<span class="pill">${U.esc(q.theme)}</span></div>
       <p class="sentence en">${U.esc(q.q).replace('( )', '<span class="blank">(　　　)</span>')}</p>
       <div class="choices">${q.choices.map((c, k) => `<button class="choice en" data-k="${k}"><span class="lbl">${k + 1}</span>${U.esc(c)}</button>`).join('')}</div>
       <div id="fb"></div>
@@ -124,7 +134,7 @@ function readingShortRun(sub, el) {
 
 function readingPassage(type, sub, el) {
   const list = READING_DATA.long.filter(p => p.type === type);
-  const p = sub === 'auto' ? readingPriority(list, x => x.qs.map((_, i) => `${x.id}#${i}`))[0] : list.find(x => x.id === sub);
+  const p = sub === 'auto' ? readingPriority(ofGrade(list), x => x.qs.map((_, i) => `${x.id}#${i}`))[0] : list.find(x => x.id === sub);
   if (!p) { el.innerHTML = '<div class="card empty">問題が見つかりません。</div>'; return; }
   const picks = new Array(p.qs.length).fill(null);
   let checked = false;
@@ -143,7 +153,7 @@ function readingPassage(type, sub, el) {
 
   function render() {
     el.innerHTML = `
-    <div class="quiz-head"><a href="#reading/${type}" class="back">← 戻る</a><span>${READ_TYPES[type].name}</span><span class="pill">${U.esc(p.theme)}</span></div>
+    <div class="quiz-head"><a href="#reading/${type}" class="back">← 戻る</a><span>${READ_TYPES[type].name}</span><span>${gradeBadge(gOf(p))} <span class="pill">${U.esc(p.theme)}</span></span></div>
     <div class="card">${passageHTML()}</div>
     <div class="card">
       ${p.qs.map((q, qi) => `
@@ -189,13 +199,13 @@ function readingReview(el) {
   const rows = rv.map(key => {
     const [id] = key.split('#');
     const s = READING_DATA.short.find(q => q.id === id);
-    if (s) return { key, label: s.q, type: 'short', href: `#reading/short/id:${s.id}`, theme: s.theme };
+    if (s) return { key, label: s.q, type: 'short', href: `#reading/short/id:${s.id}`, theme: s.theme, grade: gOf(s) };
     const p = READING_DATA.long.find(x => x.id === id);
-    if (p) return { key, label: `${p.title}（問${+key.split('#')[1] + 1}）`, type: p.type, href: `#reading/${p.type}/${p.id}`, theme: p.theme };
+    if (p) return { key, label: `${p.title}（問${+key.split('#')[1] + 1}）`, type: p.type, href: `#reading/${p.type}/${p.id}`, theme: p.theme, grade: gOf(p) };
     return null;
   }).filter(Boolean);
   el.innerHTML = `<h1 class="page">📖 復習リスト</h1>${readingTabs('review')}
   ${rows.length ? `<p class="muted">間違えた問題です。もう一度正解するとリストから外れます。</p>
-  <div class="plist">${rows.map(r => `<a class="card link-card row" href="${r.href}"><span class="pill">${READ_TYPES[r.type].name}</span><span class="en small">${U.esc(r.label)}</span></a>`).join('')}</div>`
+  <div class="plist">${rows.map(r => `<a class="card link-card row" href="${r.href}">${gradeBadge(r.grade)}<span class="pill">${READ_TYPES[r.type].name}</span><span class="en small">${U.esc(r.label)}</span></a>`).join('')}</div>`
   : '<div class="card empty">復習リストは空です。間違えた問題が自動で追加されます。</div>'}`;
 }
