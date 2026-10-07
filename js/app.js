@@ -9,7 +9,8 @@ const NAV = [
   ['writing', '✍️', 'ライティング'],
   ['speaking', '🗣️', 'スピーキング'],
   ['past', '📚', '過去問'],
-  ['history', '📊', '学習履歴']
+  ['history', '📊', '学習履歴'],
+  ['settings', '⚙️', '設定']
 ];
 
 const App = {
@@ -57,6 +58,16 @@ function render(route) {
   U.$('#streakTop').textContent = st ? `🔥${st}日` : '';
 }
 
+// 画面上部の 🔊 ボタン（すべての音のオン／オフ）
+function updateMuteBtn() {
+  const b = U.$('#muteBtn');
+  if (!b) return;
+  const muted = !!Store.setting('muted');
+  b.textContent = muted ? '🔇' : '🔊';
+  b.setAttribute('aria-label', muted ? '音をオンにする' : '音をオフにする');
+  b.title = muted ? '音をオンにする' : '音をオフにする';
+}
+
 function syncChip(state) {
   const el = U.$('#syncState');
   if (!el) return;
@@ -77,6 +88,15 @@ document.addEventListener('click', e => {
 addEventListener('hashchange', () => { if (location.hash && location.hash !== App.current) render(location.hash); });
 addEventListener('DOMContentLoaded', () => {
   renderNav();
+  updateMuteBtn();
+  U.$('#muteBtn').onclick = () => {
+    const muted = !Store.setting('muted');
+    Store.setSetting('muted', muted);
+    updateMuteBtn();
+    if (muted) { try { speechSynthesis.cancel(); } catch (e) {} U.toast('音をオフにしました'); }
+    else { Sound.play('save'); U.toast('音をオンにしました'); }
+    if (App.current === '#settings') render('#settings');
+  };
   let start = '#home';
   try { if (/^#[a-z]/.test(location.hash)) start = location.hash; } catch (e) {}
   render(start);

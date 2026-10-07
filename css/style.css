@@ -423,3 +423,19 @@ textarea.answer { font-family: var(--en); font-size: 1.05rem; line-height: 1.7; 
 .mascot .m-text { font-weight: 800; font-size: 1.05rem; }
 @media (max-width: 899px) { .mascot { bottom: calc(var(--bottom) + var(--safe-bottom) + 16px); } }
 @media (prefers-reduced-motion: reduce) { .mascot { transition: opacity .2s; transform: none; } }
+
+/* ---------- 設定 ---------- */
+.mute-btn { font-size: 1.2rem; border-radius: 10px; }
+.mute-btn:hover { background: var(--primary-soft); }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.switch-row span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.switch-row input[type=checkbox] { width: 26px; height: 26px; flex-shrink: 0; }
+.vol-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; }
+.vol-row input[type=range] { flex: 1; min-height: 0; padding: 0; border: 0; background: none; accent-color: var(--primary); }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.char-card { display: flex; flex-direction: column; gap: 2px; padding: 14px; border: 2px solid var(--line); border-radius: 14px; }
+.char-card.on { border-color: var(--primary); background: var(--primary-soft); }
+.char-face { font-size: 2.6rem; line-height: 1.1; }
+.char-lines { color: var(--text); margin-top: 4px; }
+.char-card .btn-row { margin-top: 8px; }
+.char-card .btn { flex: 1; min-height: 42px; padding: 8px 10px; }
