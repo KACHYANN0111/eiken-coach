@@ -56,9 +56,13 @@ Views.home = (args, el) => {
   </div>
 
   <div class="card">
-    <h2>級別 単語テスト <small class="muted">（すぐに10問）</small></h2>
+    <h2>級別 単語テスト <small class="muted">（英検・TOEIC すぐに10問）</small></h2>
     <div class="grade-grid">
-      ${CONFIG.grades.map(g => { const st = gradeStats.find(x => x.key === g.id); return `<a class="grade-tile g-${g.id}" href="#vocab/start/normal/10/e2j/word/${g.id}"><b>${g.name}</b><small>${g.level}</small><span>${VOCAB.count(g.id, 'word')}語${st && st.rate != null ? `・正答率${Math.round(st.rate * 100)}%` : ''}</span></a>`; }).join('')}
+      ${CONFIG.grades.filter(g => g.exam === 'eiken').map(g => { const st = gradeStats.find(x => x.key === g.id); return `<a class="grade-tile g-${g.id}" href="#vocab/start/normal/10/e2j/word/${g.id}"><b>${g.name}</b><small>${g.level}</small><span>${VOCAB.count(g.id, 'word')}語${st && st.rate != null ? `・正答率${Math.round(st.rate * 100)}%` : ''}</span></a>`; }).join('')}
+    </div>
+    <div class="label">TOEIC</div>
+    <div class="grade-grid">
+      ${CONFIG.grades.filter(g => g.exam === 'toeic').map(g => { const st = gradeStats.find(x => x.key === g.id); return `<a class="grade-tile g-${g.id}" href="#vocab/start/normal/10/e2j/word/${g.id}"><b>${g.name}</b><small>${g.level}</small><span>${VOCAB.count(g.id, 'word')}語${st && st.rate != null ? `・正答率${Math.round(st.rate * 100)}%` : ''}</span></a>`; }).join('')}
     </div>
   </div>
 

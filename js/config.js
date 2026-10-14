@@ -14,10 +14,14 @@ const CONFIG = {
 
   // 単語の級（英検公式のレベル目安）。並び順＝易しい順
   grades: [
-    { id: 'p2', name: '準2級', level: '高校中級程度' },
-    { id: '2', name: '2級', level: '高校卒業程度' },
-    { id: 'p1', name: '準1級', level: '大学中級程度' },
-    { id: '1', name: '1級', level: '大学上級程度' }
+    { id: 'p2', name: '準2級', level: '高校中級程度', exam: 'eiken' },
+    { id: '2', name: '2級', level: '高校卒業程度', exam: 'eiken' },
+    { id: 'p1', name: '準1級', level: '大学中級程度', exam: 'eiken' },
+    { id: '1', name: '1級', level: '大学上級程度', exam: 'eiken' },
+    // TOEIC（目標スコア別）。英検とは別の単語として記録する
+    { id: 't600', name: 'TOEIC 600', level: '目標600点', exam: 'toeic' },
+    { id: 't730', name: 'TOEIC 730', level: '目標730点', exam: 'toeic' },
+    { id: 't860', name: 'TOEIC 860', level: '目標860点以上', exam: 'toeic' }
   ],
   defaultGrade: '2',
 

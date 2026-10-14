@@ -13,7 +13,7 @@ const VOCAB_FORMATS = [
   { id: 'spell', name: '日本語 → 英語（入力）' },
   { id: 'mix', name: 'ミックス' }
 ];
-const GRADE_OPTS = [...CONFIG.grades.map(g => [g.id, g.name]), ['all', '全級']];
+const GRADE_OPTS = [...CONFIG.grades.map(g => [g.id, g.name]), ['all', 'すべて']];
 
 function vocabTabs(active) {
   const t = [['#vocab', 'test', '単語テスト'], ['#vocab/list', 'list', '単語一覧'], ['#vocab/list/phrase', 'phrase', '熟語・表現'], ['#vocab/list/weak', 'weak', '苦手単語']];
@@ -35,11 +35,13 @@ Views.vocab = (args, el) => {
   ${vocabTabs('test')}
   <div class="card">
     <h2>級を選ぶ</h2>
-    <div class="grade-grid" id="grade">
-      ${GRADE_OPTS.map(([id, name]) => {
-        const g = CONFIG.grades.find(x => x.id === id);
-        return `<button type="button" class="grade-tile g-${id} ${id === sel.grade ? 'on' : ''}" data-v="${id}"><b>${name}</b><small>${g ? g.level : 'すべての級から'}</small><span>${VOCAB.count(id, 'word')}語・熟語${VOCAB.count(id, 'phrase')}</span></button>`;
-      }).join('')}
+    <div id="grade">
+      ${[['eiken', '英検'], ['toeic', 'TOEIC'], ['all', '']].map(([ex, label]) => `
+        ${label ? `<div class="label">${label}</div>` : ''}
+        <div class="grade-grid">${GRADE_OPTS.filter(([id]) => ex === 'all' ? id === 'all' : (CONFIG.grades.find(x => x.id === id) || {}).exam === ex).map(([id, name]) => {
+          const g = CONFIG.grades.find(x => x.id === id);
+          return `<button type="button" class="grade-tile g-${id} ${id === sel.grade ? 'on' : ''}" data-v="${id}"><b>${name}</b><small>${g ? g.level : '英検・TOEICのすべてから'}</small><span>${VOCAB.count(id, 'word')}語${VOCAB.count(id, 'phrase') ? '・熟語' + VOCAB.count(id, 'phrase') : ''}</span></button>`;
+        }).join('')}</div>`).join('')}
     </div>
     <h3>テストモード</h3>
     <div class="choice-grid" id="modes">

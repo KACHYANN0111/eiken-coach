@@ -383,6 +383,7 @@ textarea.answer { font-family: var(--en); font-size: 1.05rem; line-height: 1.7; 
 .grade-tile b { font-size: 1.1rem; color: var(--gc, var(--primary)); }
 .grade-tile small, .grade-tile span { color: var(--muted); font-size: .78rem; }
 .grade-tile.on { border-color: var(--gc, var(--primary)); background: var(--primary-soft); }
+.g-t600, .g-t730, .g-t860 { --gc: #0f8a8a; } .g-t860 { --gc: #6b4fd8; } .g-t730 { --gc: #1b7fb8; }
 .g-p2 { --gc: var(--gp2); } .g-2 { --gc: var(--g2); } .g-p1 { --gc: var(--gp1); } .g-1 { --gc: var(--g1); } .g-all { --gc: var(--muted); }
 .grade-badge {
   display: inline-block; padding: 0 8px; border-radius: 6px; font-size: .75rem; font-weight: 700; white-space: nowrap;

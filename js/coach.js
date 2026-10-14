@@ -12,12 +12,12 @@ const FREQ_W = { '高': 3, '中': 2, '低': 1 };
 function parseVocab(raw, kind, grade) {
   return raw.trim().split('\n').map(line => line.trim()).filter(l => l && !l.startsWith('#')).map(line => {
     const [en, ja, pos, imp, freq, cat, ex, exJa] = line.split('|').map(s => (s || '').trim());
-    return { id: (kind === 'phrase' ? 'p:' : 'w:') + en, kind, grade, en, ja, pos, imp, freq, cat, ex, exJa };
+    return { id: (String(grade).startsWith('t') ? 't' : '') + (kind === 'phrase' ? 'p:' : 'w:') + en, kind, grade, en, ja, pos, imp, freq, cat, ex, exJa };
   });
 }
 
 const GRADE_ORDER = CONFIG.grades.map(g => g.id);
-const gradeName = id => (CONFIG.grades.find(g => g.id === id) || {}).name || '全級';
+const gradeName = id => (CONFIG.grades.find(g => g.id === id) || {}).name || 'すべて';
 
 const VOCAB = (() => {
   const byGrade = (parts, kind) => parts
