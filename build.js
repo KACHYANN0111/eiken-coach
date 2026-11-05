@@ -52,14 +52,23 @@ const css = read('css/style.css');
 const body = html.slice(html.indexOf('<body>') + 6, html.indexOf('<!-- 設定・共通 -->')).trim();
 const js = scripts.map(src => `/* ---- ${src} ---- */\n` + read(src)).join('\n');
 if (/<\/script/i.test(js)) throw new Error('JS に </script が含まれています');
-const out = `<title>${title}</title>
+const out = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${title}</title>
 <style>
 ${css}
 </style>
+</head>
+<body>
 ${body}
 <script>
 ${js}
 </script>
+</body>
+</html>
 `;
 fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(ROOT, 'dist/eiken-coach.html'), out);

@@ -10,7 +10,7 @@ async function talkAiMenu(el) {
       ? `<p class="small">${Mic.supported() ? '🎤 マイクで英語を話すと、AIが英語で返事をして音声で読み上げます。' : '英語を入力すると、AIが英語で返事をして音声で読み上げます。'}あなたのAPIキーを使います（利用料はAnthropicのアカウントに請求されます）。</p>`
       : '';
   const setup = embedded
-    ? '<div class="card callout"><b>このページではAI会話が使えません。</b><p class="small">claude.ai にログインして開いているか確認してください。</p></div>'
+    ? '<div class="card callout"><b>このページでは、AI会話はまだ使えません。</b><p class="small">AIの利用許可が設定されていないか、claude.ai にログインしていない可能性があります。スマホアプリ版で APIキーを設定すると、声で話して使えます。</p></div>'
     : `<div class="card callout">
         <b>AI会話を使うには、Anthropic の APIキーが必要です</b>
         <ol class="small">
