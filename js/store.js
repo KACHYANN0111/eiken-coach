@@ -23,12 +23,14 @@ const Store = (() => {
     writing: [],          // {type, promptId, title, text, words, opinion, checks, date}
     speaking: [],         // {setId, part, text, date}
     pastExams: [],        // 過去問の学習記録
+    talk: { stats: {}, log: [] }, // 英会話：フレーズごとの成績 {ok, ng, last, best} と練習ログ
     drafts: {},           // 書きかけの英作文
     plan: null            // 今日の10分 の進行状況
   });
   const normalize = d => {
     const out = Object.assign(defaults(), d || {});
     out.settings = Object.assign(defaults().settings, out.settings || {});
+    out.talk = Object.assign({ stats: {}, log: [] }, out.talk || {});
     return out;
   };
 
@@ -47,6 +49,7 @@ const Store = (() => {
   }
   function trim() {
     for (const [k, n] of Object.entries(LIMITS)) if (data[k].length > n) data[k] = data[k].slice(-n);
+    if (data.talk.log.length > 500) data.talk.log = data.talk.log.slice(-500);
   }
   function save() {
     trim();
@@ -120,7 +123,7 @@ const Cloud = {
   onChange: null,     // 状態表示の更新
   onRemote: null,     // クラウドの新しいデータを読み込んだとき
 
-  docNames() { return ['core', 'reading', 'listening', 'writing', 'speaking', ...CONFIG.grades.map(g => 'words_' + g.id)]; },
+  docNames() { return ['core', 'reading', 'listening', 'writing', 'speaking', 'talk', ...CONFIG.grades.map(g => 'words_' + g.id)]; },
 
   split(d) {
     const words = {};
@@ -136,6 +139,7 @@ const Cloud = {
       listening: { items: d.listening },
       writing: { items: d.writing },
       speaking: { items: d.speaking },
+      talk: d.talk || { stats: {}, log: [] },
       ...words
     };
   },
@@ -146,7 +150,8 @@ const Cloud = {
     return {
       ...c, wordStats,
       reading: (docs.reading || {}).items || [], listening: (docs.listening || {}).items || [],
-      writing: (docs.writing || {}).items || [], speaking: (docs.speaking || {}).items || []
+      writing: (docs.writing || {}).items || [], speaking: (docs.speaking || {}).items || [],
+      talk: docs.talk || { stats: {}, log: [] }
     };
   },
   ref(name) { return this.db.doc('data/users/' + this.uid + '/' + name); },

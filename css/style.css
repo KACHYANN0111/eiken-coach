@@ -457,3 +457,67 @@ textarea.answer { font-family: var(--en); font-size: 1.05rem; line-height: 1.7; 
 .exam-tabs .grade-tile { min-height: 0; padding: 8px 10px; border-left-width: 5px; }
 .exam-tabs .grade-tile b { font-size: 1rem; }
 .exam-tabs .grade-tile small { font-size: .7rem; }
+
+/* ---------- 英会話 ---------- */
+.talk-home { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text); border: 1.5px solid var(--primary); }
+.talk-home span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.talk-home-ic { font-size: 2rem; }
+.talk-home-go { font-size: 1.4rem; background: var(--primary); color: #fff; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.talk-progress { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.talk-progress div { flex: 1; height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.talk-progress i { display: block; height: 100%; background: var(--ok); }
+.talk-progress span { font-size: .85rem; white-space: nowrap; }
+.talk-steps { padding-left: 1.3em; margin: 10px 0; }
+.talk-steps li { margin-bottom: 4px; }
+.mic-off { color: var(--warn); }
+.scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.scene-card { display: flex; flex-direction: column; gap: 3px; padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; color: var(--text); box-shadow: var(--shadow); min-width: 0; }
+.scene-card:hover { border-color: var(--primary); }
+.scene-ic { font-size: 1.8rem; }
+.scene-bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+.scene-bar i { display: block; height: 100%; background: var(--ok); }
+.talk-actions { margin-bottom: 14px; }
+.phrase-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.phrase-en { font-size: 1.12rem; font-weight: 700; margin: 0; }
+.phrase-ja { margin: 4px 0; }
+.talk-ja { font-size: 1.35rem; font-weight: 800; text-align: center; margin: 16px 0 4px; line-height: 1.5; }
+.talk-controls { justify-content: center; }
+.mic-btn { min-width: 140px; font-size: 1.1rem; }
+.rec-on { background: var(--ng) !important; border-color: var(--ng) !important; color: #fff !important; }
+.heard { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
+.listening { color: var(--ng); font-weight: 700; }
+.heard-head { display: flex; justify-content: space-between; font-size: 1.15rem; margin-bottom: 6px; }
+.heard-head.ok { color: var(--ok); } .heard-head.mid { color: var(--warn); } .heard-head.ng { color: var(--ng); }
+.word-check { margin: 8px 0 4px; line-height: 2; }
+.word-check span { padding: 2px 6px; border-radius: 6px; }
+.word-check .hit { background: var(--ok-soft); color: var(--ok); }
+.word-check .miss { background: var(--ng-soft); color: var(--ng); font-weight: 700; }
+#ans { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.model-line { font-size: 1.15rem; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.rec-box { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0; }
+.rec-box audio { max-width: 100%; height: 40px; }
+.self-rate { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.self-rate .btn { min-height: 42px; padding: 8px 12px; }
+.self-rate .btn.on { border-color: var(--primary); background: var(--primary-soft); }
+.chat { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.bubble { display: flex; gap: 8px; align-items: flex-start; max-width: 92%; }
+.bubble > div { padding: 10px 14px; border-radius: 16px; min-width: 0; }
+.bubble p { margin: 0 0 4px; }
+.bubble .who { font-size: 1.2rem; flex-shrink: 0; margin-top: 6px; }
+.bubble.them > div { background: var(--bg); border-top-left-radius: 4px; }
+.bubble.you { align-self: flex-end; }
+.bubble.you > div { background: var(--primary-soft); border-top-right-radius: 4px; }
+.bubble.you.turn > div { outline: 2px solid var(--primary); }
+.bubble .model { color: var(--primary); font-weight: 700; }
+
+/* ---------- AIと会話 ---------- */
+.small-btn { min-height: 36px; padding: 6px 12px; font-size: .85rem; }
+.ai-chat .chat { min-height: 160px; }
+.chat-input { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; }
+.chat-form { display: flex; gap: 8px; flex: 1 1 260px; min-width: 0; }
+.chat-form input { font-family: var(--en); }
+.fix { margin-top: 6px; padding: 6px 10px; border-radius: 10px; background: var(--warn-soft); }
+.fix-list { list-style: none; padding: 0; margin: 0; }
+.fix-list li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.key-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.key-row input { flex: 1 1 220px; min-width: 0; font-family: var(--en); }

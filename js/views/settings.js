@@ -42,7 +42,32 @@ Views.settings = (args, el) => {
       <button type="button" class="btn" id="testWrong">不正解の音を試す</button>
       <button type="button" class="btn" id="testFanfare">結果発表の音を試す</button>
     </div>
+  </div>
+
+  <div class="card" id="aiKeyCard">
+    <h2>🤖 AI会話</h2>
+    ${PWA.embedded
+      ? '<p class="small">claude.ai 版では、APIキーなしで claude.ai のAIと会話できます（「💬 英会話」→「🤖 AIと会話」）。</p>'
+      : `<p class="small">「💬 英会話」の「🤖 AIと会話」で、英語で話しかけるとAIが英語で答えてくれます。使うには Anthropic の APIキーが必要です（<span class="en">console.anthropic.com</span> で作成。利用料は従量課金で、あなたのアカウントに請求されます）。</p>
+        <p class="small muted">キーはこの端末の中だけに保存され、学習記録・クラウド・バックアップファイルには含まれません。使いすぎを防ぐため、Console で利用上限（Spend limit）を設定しておくと安心です。共用の端末では保存しないでください。</p>
+        <div class="key-row">
+          <input id="apiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${AIChat.getKey() ? '保存済み（変更する場合は新しいキーを入力）' : 'sk-ant- で始まるAPIキーを貼り付け'}" aria-label="Anthropic APIキー">
+          <button type="button" class="btn primary" id="saveKey">保存</button>
+          ${AIChat.getKey() ? '<button type="button" class="btn danger" id="clearKey">削除</button>' : ''}
+        </div>
+        <p class="small">${AIChat.getKey() ? '✅ APIキーが保存されています。' : 'まだAPIキーは保存されていません。'}</p>`}
   </div>`;
+  const sk = U.$('#saveKey', el);
+  if (sk) sk.onclick = () => {
+    const v = U.$('#apiKey', el).value.trim();
+    if (!v) return U.toast('APIキーを入力してください');
+    if (!/^sk-ant-/.test(v)) return U.toast('Anthropic の APIキーは sk-ant- で始まります');
+    AIChat.setKey(v);
+    U.toast('APIキーを保存しました');
+    Views.settings(args, el);
+  };
+  const ck = U.$('#clearKey', el);
+  if (ck) ck.onclick = () => { AIChat.clearKey(); U.toast('APIキーを削除しました'); Views.settings(args, el); };
 
   const save = (k, v) => { Store.setSetting(k, v); updateMuteBtn(); };
   U.$('#opt-all', el).onchange = e => save('muted', !e.target.checked);

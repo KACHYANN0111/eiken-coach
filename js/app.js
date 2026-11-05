@@ -8,6 +8,7 @@ const NAV = [
   ['listening', '🎧', 'リスニング'],
   ['writing', '✍️', 'ライティング'],
   ['speaking', '🗣️', 'スピーキング'],
+  ['talk', '💬', '英会話'],
   ['past', '📚', '過去問'],
   ['history', '📊', '学習履歴'],
   ['settings', '⚙️', '設定']
@@ -30,7 +31,7 @@ const App = {
 function renderNav() {
   const html = NAV.map(([id, ic, name]) => `<a href="#${id}" data-r="${id}"><span class="ic">${ic}</span><span>${name}</span></a>`).join('');
   U.$('#sideNav').innerHTML = html;
-  U.$('#bottomNav').innerHTML = NAV.filter(n => ['home', 'vocab', 'reading', 'listening', 'writing'].includes(n[0]))
+  U.$('#bottomNav').innerHTML = NAV.filter(n => ['home', 'vocab', 'talk', 'reading', 'listening', 'writing'].includes(n[0]))
     .map(([id, ic, name]) => `<a href="#${id}" data-r="${id}"><span class="ic">${ic}</span><span>${name === 'リーディング' ? '読む' : name === 'リスニング' ? '聞く' : name === 'ライティング' ? '書く' : name}</span></a>`).join('')
     + `<button id="moreBtn" type="button"><span class="ic">☰</span><span>メニュー</span></button>`;
   U.$('#moreBtn').onclick = () => toggleMenu();

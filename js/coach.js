@@ -171,6 +171,11 @@ const Coach = {
     if (!lastSp || U.daysBetween(lastSp, U.today()) >= 3) {
       steps.push({ kind: 'speaking', label: `${examOf().name}二次試験 面接1セット`, route: '#speaking/auto', area: 'speaking', reason: lastSp ? '3日以上スピーキング練習なし' : 'まだ面接練習をしていません' });
     }
+    const tl = (D.talk && D.talk.log) || [];
+    const lastTalk = tl.length ? tl[tl.length - 1].date : null;
+    if (!lastTalk || U.daysBetween(lastTalk, U.today()) >= 1) {
+      steps.push({ kind: 'talk', label: '英会話 5フレーズを話す', route: '#talk/practice/all/5', area: 'talk', reason: '声に出す練習を毎日少しずつ' });
+    }
 
     // 苦手分野（正答率の低い分野）を先頭へ。単語は常に最初の方に置く
     const r = k => a.area[k] == null ? 0.75 : a.area[k];
