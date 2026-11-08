@@ -56,7 +56,18 @@ Views.settings = (args, el) => {
           ${AIChat.getKey() ? '<button type="button" class="btn danger" id="clearKey">削除</button>' : ''}
         </div>
         <p class="small">${AIChat.getKey() ? '✅ APIキーが保存されています。' : 'まだAPIキーは保存されていません。'}</p>`}
+  </div>
+
+  <div class="card">
+    <h2>アプリのバージョン</h2>
+    <p>バージョン：<b class="en">${U.esc(typeof APP_VERSION === 'string' ? APP_VERSION : '不明')}</b></p>
+    ${PWA.embedded
+      ? '<p class="small muted">claude.ai 版は、開くたびに最新の版が表示されます。</p>'
+      : `<p class="small muted">新しい機能が表示されないときは、下のボタンを押してください（学習記録は消えません）。</p>
+        <button type="button" class="btn primary" id="checkUpdate">🔄 最新版を確認</button>`}
   </div>`;
+  const cu = U.$('#checkUpdate', el);
+  if (cu) cu.onclick = () => { cu.disabled = true; cu.textContent = '確認しています…'; PWA.checkUpdate(); };
   const sk = U.$('#saveKey', el);
   if (sk) sk.onclick = () => {
     const v = U.$('#apiKey', el).value.trim();

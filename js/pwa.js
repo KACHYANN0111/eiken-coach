@@ -18,9 +18,22 @@ const PWA = {
     return 'pc';
   },
 
+  reg: null,        // サービスワーカーの登録情報（更新チェックに使う）
+
   init() {
     if (!this.embedded && 'serviceWorker' in navigator && (location.protocol === 'https:' || /[?&]sw\b/.test(location.search))) {
-      navigator.serviceWorker.register('sw.js').catch(e => console.warn('service worker', e));
+      const hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then(reg => { this.reg = reg; })
+        .catch(e => console.warn('service worker', e));
+      // アプリに戻ってきたときに新しい版がないか確認する
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.reg) this.reg.update().catch(() => {});
+      });
+      // 使っている途中で新しい版に切り替わったら、学習を邪魔しないよう案内だけ出す
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController) this.showUpdateBar();
+      });
     }
     addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -29,6 +42,23 @@ const PWA = {
       if (btn) btn.hidden = false;
     });
     addEventListener('appinstalled', () => { this.deferred = null; U.toast('ホーム画面に追加しました'); });
+  },
+
+  showUpdateBar() {
+    if (U.$('#updateBar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'updateBar';
+    bar.className = 'update-bar';
+    bar.innerHTML = '<span>新しい版があります</span><button type="button" class="btn primary small-btn">更新する</button><button type="button" class="icon-btn" aria-label="閉じる">✕</button>';
+    bar.querySelector('.btn').onclick = () => location.reload();
+    bar.querySelector('.icon-btn').onclick = () => bar.remove();
+    document.body.appendChild(bar);
+  },
+
+  // 設定画面の「最新版を確認」：新しい版を取りに行き、ページを読み込み直す
+  async checkUpdate() {
+    if (this.reg) await this.reg.update().catch(() => {});
+    location.reload();
   },
 
   async install() {

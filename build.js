@@ -15,14 +15,23 @@ const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m =>
 const assets = ['./', 'index.html', 'manifest.webmanifest', 'css/style.css', ...scripts,
   ...fs.readdirSync(path.join(ROOT, 'icons')).filter(f => f.endsWith('.png')).map(f => 'icons/' + f)];
 const hash = crypto.createHash('sha256');
-assets.filter(a => a !== './').forEach(a => hash.update(fs.readFileSync(path.join(ROOT, a))));
+assets.filter(a => a !== './' && a !== 'js/version.js').forEach(a => hash.update(fs.readFileSync(path.join(ROOT, a))));
 const version = hash.digest('hex').slice(0, 10);
+
+// アプリのバージョン表示用（設定画面に出す）
+const d = new Date(), p2 = n => String(n).padStart(2, '0');
+const label = `${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())}-${version.slice(0, 6)}`;
+fs.writeFileSync(path.join(ROOT, 'js/version.js'), `/* build.js が自動生成（手で編集しない） */\nvar APP_VERSION = '${label}';\n`);
+
 const sw = `/* スマホアプリ版（PWA）のサービスワーカー：build.js が自動生成（手で編集しない） */
 const CACHE = 'eiken-coach-${version}';
 const ASSETS = ${JSON.stringify(assets, null, 2)};
 
+// 新しい版のファイルを（ブラウザの一時保存を使わず）取り直して保存し、すぐ切り替える
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -31,20 +40,22 @@ self.addEventListener('activate', e => {
     .then(() => self.clients.claim()));
 });
 
-// 自サイトのファイルはキャッシュ優先（オフラインでも動く）。外部サイトへの通信には関与しない
+// ネットにつながっていれば常に最新を読み込み、つながらないときだけ保存済みの版を使う
+// （外部サイトへの通信には関与しない）
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {
+    fetch(req, { cache: 'no-cache' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
-    }).catch(() => req.mode === 'navigate' ? caches.match('index.html') : undefined))
+    }).catch(() => caches.match(req, { ignoreSearch: true })
+      .then(hit => hit || (req.mode === 'navigate' ? caches.match('index.html') : undefined)))
   );
 });
 `;
 fs.writeFileSync(path.join(ROOT, 'sw.js'), sw);
-console.log(`sw.js (cache ${version}, ${assets.length} files)`);
+console.log(`sw.js (cache ${version}, ${assets.length} files) / version ${label}`);
 
 /* ---------- 2. claude.ai 公開版（1ファイル） ---------- */
 const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '英検2級 AI学習コーチ';

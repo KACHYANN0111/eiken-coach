@@ -1,10 +1,11 @@
 /* スマホアプリ版（PWA）のサービスワーカー：build.js が自動生成（手で編集しない） */
-const CACHE = 'eiken-coach-1501b13b4f';
+const CACHE = 'eiken-coach-a8a6323c4a';
 const ASSETS = [
   "./",
   "index.html",
   "manifest.webmanifest",
   "css/style.css",
+  "js/version.js",
   "js/config.js",
   "js/util.js",
   "js/store.js",
@@ -63,8 +64,11 @@ const ASSETS = [
   "icons/icon-maskable-512.png"
 ];
 
+// 新しい版のファイルを（ブラウザの一時保存を使わず）取り直して保存し、すぐ切り替える
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -73,14 +77,16 @@ self.addEventListener('activate', e => {
     .then(() => self.clients.claim()));
 });
 
-// 自サイトのファイルはキャッシュ優先（オフラインでも動く）。外部サイトへの通信には関与しない
+// ネットにつながっていれば常に最新を読み込み、つながらないときだけ保存済みの版を使う
+// （外部サイトへの通信には関与しない）
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {
+    fetch(req, { cache: 'no-cache' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
-    }).catch(() => req.mode === 'navigate' ? caches.match('index.html') : undefined))
+    }).catch(() => caches.match(req, { ignoreSearch: true })
+      .then(hit => hit || (req.mode === 'navigate' ? caches.match('index.html') : undefined)))
   );
 });
