@@ -174,7 +174,11 @@ const Coach = {
     const tl = (D.talk && D.talk.log) || [];
     const lastTalk = tl.length ? tl[tl.length - 1].date : null;
     if (!lastTalk || U.daysBetween(lastTalk, U.today()) >= 1) {
-      steps.push({ kind: 'talk', label: '英会話 5フレーズを話す', route: '#talk/practice/all/5', area: 'talk', reason: '声に出す練習を毎日少しずつ' });
+      // フレーズ練習と質疑応答を交互にすすめる
+      const lastWasQa = tl.length && String(tl[tl.length - 1].id || '').startsWith('qa:');
+      steps.push(lastWasQa
+        ? { kind: 'talk', label: '英会話 5フレーズを話す', route: '#talk/practice/all/5', area: 'talk', reason: '声に出す練習を毎日少しずつ' }
+        : { kind: 'talk', label: '英語で質疑応答 3問', route: '#talk/qa/all', area: 'talk', reason: '英語の質問に英語で答える練習' });
     }
 
     // 苦手分野（正答率の低い分野）を先頭へ。単語は常に最初の方に置く

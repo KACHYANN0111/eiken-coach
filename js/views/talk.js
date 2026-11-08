@@ -11,7 +11,7 @@ const talkWeak = p => talkStat(p.id).last === 'ng';
 
 function talkTabs(active) {
   const weakN = talkAll().filter(talkWeak).length;
-  const t = [['#talk', 'top', '場面を選ぶ'], ['#talk/ai', 'ai', '🤖 AIと会話'], ['#talk/practice/all/10', 'practice', '話して練習'], ['#talk/practice/weak/10', 'weak', `苦手(${weakN})`]];
+  const t = [['#talk', 'top', '場面'], ['#talk/qa', 'qa', '🗣️ 質疑応答'], ['#talk/ai', 'ai', '🤖 AI会話'], ['#talk/practice/all/10', 'practice', '話す練習'], ['#talk/practice/weak/10', 'weak', `苦手(${weakN})`]];
   return `<div class="tabs">${t.map(([h, k, n]) => `<a href="${h}" class="${k === active ? 'on' : ''}">${n}</a>`).join('')}</div>`;
 }
 
@@ -26,6 +26,7 @@ Views.talk = (args, el) => {
   if (mode === 'practice') return talkPractice(a1 || 'all', +a2 || 10, el);
   if (mode === 'role') return talkRole(a1, el);
   if (mode === 'ai') return a1 ? talkAiChat(a1, el) : talkAiMenu(el);
+  if (mode === 'qa') return a1 ? talkQaRun(a1, el) : talkQaMenu(el);
 
   const all = talkAll();
   const done = all.filter(talkMastered).length;
@@ -39,10 +40,13 @@ Views.talk = (args, el) => {
       <li><b>フレーズを覚える</b>：場面を選んで、音声を聞きながら意味と使い方を確認</li>
       <li><b>話して練習</b>：日本語を見て、英語で言ってみる（マイクで判定）</li>
       <li><b>ロールプレイ</b>：相手のセリフを聞いて、自分の番で答える</li>
+      <li><b>質疑応答</b>：英語の質問に英語で答えて、会話を続ける（APIキー不要）</li>
+      <li><b>AI会話</b>：AIと自由に英語で話す</li>
     </ol>
     ${micNotice()}
     <div class="btn-row">
-      <a class="btn primary" href="#talk/ai">🤖 AIと英語で会話する</a>
+      <a class="btn primary" href="#talk/qa/all">🗣️ 英語で質疑応答（キー不要）</a>
+      <a class="btn" href="#talk/ai">🤖 AIと英語で会話する</a>
       <a class="btn" href="#talk/practice/all/10">🎤 ランダムに10フレーズ話す</a>
       ${all.some(talkWeak) ? `<a class="btn" href="#talk/practice/weak/10">苦手フレーズを練習</a>` : ''}
     </div>

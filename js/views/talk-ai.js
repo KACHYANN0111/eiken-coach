@@ -5,14 +5,21 @@ async function talkAiMenu(el) {
   const mode = await AIChat.mode();
   const embedded = PWA.embedded;
   const how = mode === 'sample'
-    ? '<p class="small">claude.ai のAIが会話相手になります（初回に利用の許可を求められます）。claude.ai の中ではマイクが使えないため、英語は<b>文字で入力</b>してください。返事は音声で読み上げます。</p>'
+    ? '<p class="small">claude.ai のAIが会話相手になります（初回に利用の許可を求められます）。claude.ai の中ではアプリのマイク機能が使えないため、英語は<b>文字で入力</b>してください（iPhone は<b>キーボードの🎤</b>を押して話すと文字になります）。返事は音声で読み上げます。</p>'
     : mode === 'api'
       ? `<p class="small">${Mic.supported() ? '🎤 マイクで英語を話すと、AIが英語で返事をして音声で読み上げます。' : '英語を入力すると、AIが英語で返事をして音声で読み上げます。'}あなたのAPIキーを使います（利用料はAnthropicのアカウントに請求されます）。</p>`
       : '';
+  const noKey = `<div class="card">
+      <h2>APIキーなしで英語の質疑応答をする</h2>
+      <p class="small"><b>🗣️ 質疑応答</b>：アプリが英語で質問し、あなたが声で答えると、相づちと次の質問が返ってきます。無料・オフラインで使えます（決まった質問に答える形式です）。</p>
+      <div class="btn-row"><a class="btn primary" href="#talk/qa/all">🗣️ 質疑応答を始める</a></div>
+      ${!embedded && CONFIG.claudeUrl ? `<p class="small" style="margin-top:12px"><b>🤖 claude.ai 版</b>：claude.ai にログインしていれば、APIキーなしでAIと自由に会話できます（英語は文字入力。iPhone はキーボードの🎤で音声入力できます）。学習記録はアプリ版とは別に保存されます。</p>
+      <div class="btn-row"><a class="btn" href="${CONFIG.claudeUrl}" target="_blank" rel="noopener">claude.ai 版を開く</a></div>` : ''}
+    </div>`;
   const setup = embedded
-    ? '<div class="card callout"><b>このページでは、AI会話はまだ使えません。</b><p class="small">AIの利用許可が設定されていないか、claude.ai にログインしていない可能性があります。スマホアプリ版で APIキーを設定すると、声で話して使えます。</p></div>'
-    : `<div class="card callout">
-        <b>AI会話を使うには、Anthropic の APIキーが必要です</b>
+    ? `<div class="card callout"><b>このページでは、AI会話はまだ使えません。</b><p class="small">AIの利用許可が設定されていないか、claude.ai にログインしていない可能性があります。</p></div>${noKey}`
+    : `${noKey}<div class="card callout">
+        <b>AI会話をアプリ版で使うには、Anthropic の APIキーが必要です</b>
         <ol class="small">
           <li>パソコンで <span class="en">console.anthropic.com</span> にアクセスし、アカウントを作成（利用料は従量課金です）</li>
           <li>「API Keys」でキーを作成してコピー</li>
@@ -21,7 +28,7 @@ async function talkAiMenu(el) {
         <p class="small muted">キーはこの端末の中だけに保存され、学習記録やクラウドには送られません。使いすぎを防ぐため、Console で利用上限（Spend limit）を設定しておくと安心です。</p>
         <a class="btn primary" href="#settings">設定を開く</a>
       </div>
-      <p class="small muted">APIキーがなくても、「話して練習」や各場面の「ロールプレイ」で声に出す練習ができます。claude.ai 版ではキーなしでAI会話を使えます（文字入力）。</p>`;
+      <p class="small muted">APIキーがなくても、「質疑応答」「話して練習」「ロールプレイ」で声に出す練習ができます。</p>`;
   el.innerHTML = `
   <h1 class="page">💬 AIと英語で会話</h1>
   ${talkTabs('ai')}
@@ -56,6 +63,7 @@ async function talkAiChat(topicId, el) {
         <button class="btn primary" id="sendBtn">送信</button>
       </form>
     </div>
+    ${useMic ? '' : '<p class="small muted">📱 iPhone：キーボードの🎤（音声入力）を押して英語で話すと、文字で入力できます（キーボードを English にしておく）。</p>'}
     <p class="small muted" id="chatNote"></p>
   </div>
   <div id="chatSummary"></div>`;

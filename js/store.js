@@ -23,14 +23,14 @@ const Store = (() => {
     writing: [],          // {type, promptId, title, text, words, opinion, checks, date}
     speaking: [],         // {setId, part, text, date}
     pastExams: [],        // 過去問の学習記録
-    talk: { stats: {}, log: [] }, // 英会話：フレーズごとの成績 {ok, ng, last, best} と練習ログ
+    talk: { stats: {}, log: [], qa: {} }, // 英会話：フレーズごとの成績 {ok, ng, last, best}・練習ログ・質疑応答で答えた回数
     drafts: {},           // 書きかけの英作文
     plan: null            // 今日の10分 の進行状況
   });
   const normalize = d => {
     const out = Object.assign(defaults(), d || {});
     out.settings = Object.assign(defaults().settings, out.settings || {});
-    out.talk = Object.assign({ stats: {}, log: [] }, out.talk || {});
+    out.talk = Object.assign({ stats: {}, log: [], qa: {} }, out.talk || {});
     return out;
   };
 
@@ -139,7 +139,7 @@ const Cloud = {
       listening: { items: d.listening },
       writing: { items: d.writing },
       speaking: { items: d.speaking },
-      talk: d.talk || { stats: {}, log: [] },
+      talk: d.talk || { stats: {}, log: [], qa: {} },
       ...words
     };
   },
@@ -151,7 +151,7 @@ const Cloud = {
       ...c, wordStats,
       reading: (docs.reading || {}).items || [], listening: (docs.listening || {}).items || [],
       writing: (docs.writing || {}).items || [], speaking: (docs.speaking || {}).items || [],
-      talk: docs.talk || { stats: {}, log: [] }
+      talk: Object.assign({ stats: {}, log: [], qa: {} }, docs.talk || {})
     };
   },
   ref(name) { return this.db.doc('data/users/' + this.uid + '/' + name); },

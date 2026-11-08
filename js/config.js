@@ -10,6 +10,7 @@ const CONFIG = {
   storageKey: 'eiken2coach.v1',
   // スマホアプリ版（PWA）の公開URL（末尾 / 付き）。未公開なら空文字
   appUrl: 'https://kachyann0111.github.io/eiken-coach/',
+  claudeUrl: 'https://claude.ai/artifact/Fc9KJbfqZbvcTZiZjqZ5EB',   // claude.ai 公開版（APIキーなしでAI会話が使える）
   checkedAt: '2026-10-07',
 
   // 単語の級（英検公式のレベル目安）。並び順＝易しい順

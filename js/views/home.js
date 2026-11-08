@@ -40,7 +40,7 @@ Views.home = (args, el) => {
 
   <a class="card talk-home" href="#talk">
     <span class="talk-home-ic">💬</span>
-    <span><b>英会話（試験に関係なく話す練習）</b><small class="muted">日常会話のフレーズを、声に出して身につける。${TALK_DATA.scenes.length}場面・${TALK_DATA.scenes.reduce((a, s) => a + s.phrases.length, 0)}フレーズ</small></span>
+    <span><b>英会話（試験に関係なく話す練習）</b><small class="muted">英語の質問に英語で答える質疑応答・AI会話・${TALK_DATA.scenes.reduce((a, s) => a + s.phrases.length, 0)}フレーズの発話練習</small></span>
     <span class="talk-home-go">🎤</span>
   </a>
 
