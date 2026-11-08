@@ -229,14 +229,14 @@ function talkQaRun(topicId, el) {
     };
     const mb = U.$('#chatMic', ctl);
     if (mb) mb.onclick = () => {
-      if (Mic.current) { Mic.stop(); return; }
+      if (Mic.current) { Mic.stop({ keep: true }); return; }
       const inp = U.$('#chatText', ctl);
       mb.textContent = '■ 止める';
       mb.classList.add('rec-on');
       note.innerHTML = '<span class="listening">● 聞いています… 英語で答えてください</span>';
       Mic.listen({
         onresult: (alts, fin) => { inp.value = alts[0]; if (fin) { note.textContent = ''; const v = inp.value.trim(); inp.value = ''; if (v) answer(v); } },
-        onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span>`; },
+        onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span> ${U.esc(Mic.typingTip())}`; },
         onend: () => { mb.textContent = '🎤 話す'; mb.classList.remove('rec-on'); if (U.$('.listening', note)) note.textContent = ''; }
       });
     };

@@ -165,7 +165,7 @@ function talkPractice(target, n, el) {
 
     const mb = U.$('#micBtn', el);
     if (mb) mb.onclick = () => {
-      if (Mic.current) { Mic.stop(); return; }
+      if (Mic.current) { Mic.stop({ keep: true }); return; }
       const heard = U.$('#heard', el);
       heard.hidden = false;
       heard.innerHTML = '<span class="listening">● 聞いています… 英語で話してください</span>';

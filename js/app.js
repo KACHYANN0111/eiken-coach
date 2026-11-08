@@ -45,6 +45,7 @@ function toggleMenu(force) {
 
 function render(route) {
   Speech.stop();
+  if (typeof Mic !== 'undefined') Mic.drop();   // 画面を移ったら、聞いている途中の音声認識も終える
   toggleMenu(false);
   App.current = route || '#home';
   const [name, ...args] = App.current.slice(1).split('/').map(decodeURIComponent);

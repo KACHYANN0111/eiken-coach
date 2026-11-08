@@ -126,7 +126,7 @@ async function talkAiChat(topicId, el) {
 
   const mb = U.$('#chatMic', el);
   if (mb) mb.onclick = () => {
-    if (Mic.current) { Mic.stop(); return; }
+    if (Mic.current) { Mic.stop({ keep: true }); return; }
     if (busy) return;
     const inp = U.$('#chatText', el);
     mb.textContent = '■ 止める';
@@ -137,7 +137,7 @@ async function talkAiChat(topicId, el) {
         inp.value = alts[0];
         if (fin) { note.textContent = ''; const v = inp.value; inp.value = ''; send(v); }
       },
-      onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span>`; },
+      onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span> ${U.esc(Mic.typingTip())}`; },
       onend: () => { mb.textContent = '🎤 話す'; mb.classList.remove('rec-on'); if (U.$('.listening', note)) note.textContent = ''; }
     });
   };

@@ -9,40 +9,143 @@
 const Mic = {
   Rec: window.SpeechRecognition || window.webkitSpeechRecognition || null,
   supported() { return !!this.Rec && !(window.PWA && PWA.embedded); },
-  current: null,
+  current: null,      // 聞いている間だけ値が入る（「■ 止める」の判定用）
+  session: null,
+  fails: 0,           // 続けて失敗した回数（成功すると 0 に戻す）
+  SILENCE_MS: 2500,   // 文字が増えなくなってからこの時間で区切る（iPhone は自動で確定しないことがある）
+  WAIT_MS: 10000,     // 何も聞こえないまま、この時間で終える
+  MAX_MS: 30000,      // 1回に聞く最長時間
 
   // 1回話した内容を認識する。onresult(候補文字列の配列, 確定したか)
+  // ・確定の結果は1回だけ返す。確定のあとに来るエラー（効果音などで中断された等）は無視する
+  // ・確定前に止まったときは、そこまで聞こえた文で確定する
+  // ・押した直後の失敗（読み上げ音声からの切り替えなど）は一度だけ自動でやり直す
   listen({ lang = 'en-US', onresult, onend, onerror } = {}) {
     if (!this.supported()) { if (onerror) onerror('unsupported'); return null; }
-    this.stop();
+    this.drop();                       // 前の認識は黙って終わらせる（後から届くイベントも無視）
     try { Speech.stop(); } catch (e) {}
-    const r = new this.Rec();
-    r.lang = lang;
-    r.interimResults = true;
-    r.maxAlternatives = 3;
-    r.continuous = false;
-    r.onresult = e => {
-      const res = e.results[e.results.length - 1];
-      const alts = [...res].map(a => a.transcript.trim()).filter(Boolean);
-      if (onresult) onresult(alts, res.isFinal);
+    const self = this;
+    const s = { r: null, last: null, final: false, stopping: false, byUser: false, done: false, retried: false, firstErr: null, err: null, t0: 0, timers: [] };
+    const later = (fn, ms) => s.timers.push(setTimeout(() => { if (!s.done) fn(); }, ms));
+    s.close = (notify = true) => {
+      if (s.done) return;
+      s.done = true;
+      s.timers.forEach(clearTimeout);
+      clearTimeout(s.silence);
+      if (self.session === s) { self.session = null; self.current = null; }
+      if (notify && onend) onend();
     };
-    r.onerror = e => { if (onerror) onerror(e.error || 'error'); };
-    r.onend = () => { this.current = null; if (onend) onend(); };
-    try { r.start(); } catch (e) { if (onerror) onerror('start'); return null; }
-    this.current = r;
-    return r;
+    s.giveFinal = alts => {
+      if (s.final || !alts || !alts.length) return;
+      s.final = true;
+      self.fails = 0;
+      if (onresult) onresult(alts, true);
+    };
+    s.fail = code => {
+      self.fails++;
+      if (onerror) onerror(code);
+    };
+    // 聞くのをやめて、聞こえた分で確定する
+    s.stopNow = byUser => {
+      if (s.done || s.stopping) return;
+      s.stopping = true;
+      s.byUser = !!byUser;
+      clearTimeout(s.silence);
+      try { s.r.stop(); } catch (e) {}
+      // 止めても終わりの合図が来ない端末向けの保険
+      later(() => { try { s.r.abort(); } catch (e) {} if (s.last) s.giveFinal(s.last); else if (!s.byUser) s.fail('no-speech'); s.close(); }, 2000);
+    };
+    const begin = () => {
+      const r = new self.Rec();
+      s.r = r; s.err = null; s.t0 = Date.now();
+      r.lang = lang;
+      r.interimResults = true;
+      r.maxAlternatives = 3;
+      r.continuous = false;
+      const mine = () => !s.done && s.r === r;
+      r.onresult = e => {
+        if (!mine() || s.final) return;
+        const list = [...e.results];
+        if (!list.length) return;
+        const alts = list.length === 1
+          ? [...list[0]].map(a => a.transcript.trim()).filter(Boolean)
+          : [list.map(x => x[0].transcript).join(' ').replace(/\s+/g, ' ').trim()].filter(Boolean);
+        if (!alts.length) return;
+        if (list.every(x => x.isFinal)) {
+          s.stopping = true;
+          s.giveFinal(alts);
+          try { r.stop(); } catch (er) {}
+          return;
+        }
+        const changed = !s.last || s.last[0] !== alts[0];
+        s.last = alts;
+        if (onresult) onresult(alts, false);
+        if (changed) { clearTimeout(s.silence); s.silence = setTimeout(() => { if (mine()) s.stopNow(false); }, self.SILENCE_MS); }
+      };
+      r.onerror = e => { if (mine()) s.err = e.error || 'error'; };
+      r.onend = () => {
+        if (!mine()) return;
+        clearTimeout(s.silence);
+        if (s.final) return s.close();
+        if (s.last) { s.giveFinal(s.last); return s.close(); }      // 確定前に終わった → 聞こえた分で答える
+        if (s.byUser) return s.close();                             // 何も話さずに自分で止めた
+        let code = s.err || 'no-speech';
+        if (s.stopping && code === 'aborted') code = 'no-speech';   // 時間切れで止めた
+        const quick = Date.now() - s.t0 < 1500;
+        if (!s.retried && quick && !['not-allowed', 'service-not-allowed', 'language-not-supported', 'no-speech'].includes(code)) {
+          s.retried = true;
+          s.firstErr = code;
+          later(() => { try { begin(); } catch (er) { s.fail(code); s.close(); } }, 400);
+          return;
+        }
+        // やり直しても失敗したときは、最初の原因を伝える（「声が聞こえない」は除く）
+        if (s.firstErr && code !== 'no-speech') code = s.firstErr;
+        s.fail(code);
+        s.close();
+      };
+      r.start();
+    };
+    this.session = s;
+    this.current = s;
+    try { begin(); } catch (e) { s.fail('start'); s.close(); return null; }
+    later(() => { if (!s.last) s.stopNow(false); }, this.WAIT_MS);
+    later(() => s.stopNow(false), this.MAX_MS);
+    return s;
   },
-  stop() { if (this.current) { try { this.current.stop(); } catch (e) {} this.current = null; } },
+
+  // 止める。keep:true なら、そこまで聞こえた英語で答えを確定する（「■ 止める」ボタン用）
+  // keep なし（画面の切り替え・パスなど）は結果を捨てて終える
+  stop({ keep = false } = {}) {
+    const s = this.session;
+    if (!s) return;
+    if (keep) return s.stopNow(true);
+    this.drop(true);
+  },
+  // 結果を捨てて終える（notify:true なら onend だけは呼んでボタン表示を戻す）
+  drop(notify = false) {
+    const s = this.session;
+    if (!s) return;
+    s.close(notify);
+    try { s.r && (s.r.abort ? s.r.abort() : s.r.stop()); } catch (e) {}
+  },
 
   errorMessage(code) {
-    return {
-      'not-allowed': 'マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。',
-      'service-not-allowed': 'この環境では音声認識が使えません。Safari や Chrome で開いてください。',
-      'no-speech': '声が聞き取れませんでした。もう一度、はっきり話してみましょう。',
-      'audio-capture': 'マイクが見つかりませんでした。',
-      'network': '音声認識に接続できませんでした。通信環境を確認してください。',
+    const known = {
+      'not-allowed': 'マイクが許可されていません。もう一度🎤を押して「許可」を選んでください。出てこないときは、iPhone の「設定」→（アプリ →）Safari →「マイク」を「確認」か「許可」にしてください。',
+      'service-not-allowed': '音声認識が使えない設定になっています。iPhone は「設定」→「一般」→「キーボード」→「音声入力」をオンにしてください。',
+      'language-not-supported': 'この端末では英語の音声認識が使えません。iPhone は「設定」→「一般」→「キーボード」→「音声入力」をオンにしてください。',
+      'no-speech': '声が聞き取れませんでした。🎤を押したら、すぐに英語で話し始めてください。',
+      'aborted': 'うまく聞き取れませんでした。もう一度🎤を押して、話し始めてください。',
+      'audio-capture': 'マイクの準備ができませんでした。音楽や動画を止めてから、もう一度🎤を押してください。',
+      'network': '音声認識に接続できませんでした。通信環境を確認して、もう一度試してください。',
+      'start': 'マイクの準備ができませんでした。少し待ってから、もう一度🎤を押してください。',
       'unsupported': 'このブラウザは音声認識に対応していません。声に出して言ってから「答えを見る」で確認しましょう。'
-    }[code] || '音声認識でエラーが起きました。もう一度試してください。';
+    };
+    return known[code] || `音声認識がうまく動きませんでした（${code}）。もう一度🎤を押してください。`;
+  },
+  // 何度か失敗したときの案内（入力欄がある画面用）
+  typingTip() {
+    return this.fails >= 2 ? '何度もうまくいかないときは、入力欄をタップして、キーボードの🎤（音声入力）で話しても答えられます。' : '';
   }
 };
 
