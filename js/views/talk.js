@@ -15,6 +15,22 @@ function talkTabs(active) {
   return `<div class="tabs">${t.map(([h, k, n]) => `<a href="${h}" class="${k === active ? 'on' : ''}">${n}</a>`).join('')}</div>`;
 }
 
+// 日本語字幕：オンなら英文の下に訳をそのまま出す／オフなら「日本語訳」をタップしたときだけ出す
+function jaSubOn() { return Store.setting('jaSub') !== false; }
+function jaSubHTML(ja) {
+  if (!ja) return '';
+  return jaSubOn()
+    ? `<p class="small ja-sub">${U.esc(ja)}</p>`
+    : `<details><summary class="small muted">日本語訳</summary><p class="small">${U.esc(ja)}</p></details>`;
+}
+function jaSubToggle(id) {
+  return `<label class="chk small"><input type="checkbox" id="${id}" ${jaSubOn() ? 'checked' : ''}> 日本語字幕を表示する（オフにすると、訳はタップしたときだけ出ます）</label>`;
+}
+function bindJaSub(id, el, redraw) {
+  const c = U.$('#' + id, el);
+  if (c) c.onchange = () => { Store.setSetting('jaSub', c.checked); redraw(); };
+}
+
 function micNotice() {
   if (Mic.supported()) return '<p class="small muted">🎤 マイクで話すと、ブラウザの音声認識で英語を聞き取って判定します（初回はマイクの許可を求められます）。</p>';
   return '<p class="small mic-off">🎤 この環境では音声認識が使えません。声に出して言ってから「答えを見る」で確認し、自分で判定してください。（iPhone は Safari、PC は Chrome でアプリ版を開くと使えます）</p>';
@@ -168,11 +184,12 @@ function talkPractice(target, n, el) {
       if (Mic.current) { Mic.stop({ keep: true }); return; }
       const heard = U.$('#heard', el);
       heard.hidden = false;
-      heard.innerHTML = '<span class="listening">● 聞いています… 英語で話してください</span>';
+      heard.innerHTML = `<span class="listening">${U.esc(Mic.prepText('● 聞いています… 英語で話してください'))}</span>`;
       mb.textContent = '■ 止める';
       mb.classList.add('rec-on');
       let finalDone = false;
       Mic.listen({
+        onstart: () => { if (!finalDone) heard.innerHTML = '<span class="listening">● 聞いています… 英語で話してください</span>'; },
         onresult: (alts, isFinal) => {
           if (!isFinal) { heard.innerHTML = `<span class="listening">● ${U.esc(alts[0])}</span>`; return; }
           finalDone = true;
@@ -271,10 +288,11 @@ function talkRole(id, el) {
     <div class="card">
       <p class="small muted">相手（☆）のセリフが音声で流れます。あなた（★）の番になったら、日本語の指示を見て英語で答えましょう。</p>
       ${micNotice()}
+      ${jaSubToggle('roleJa')}
       ${idx < 0 ? '<button type="button" class="btn primary block" id="startBtn">▶ ロールプレイを始める</button>' : ''}
       <div class="chat">
         ${shown.map((l, k) => l.who === 'them'
-          ? `<div class="bubble them"><span class="who">☆</span><div><p class="en">${U.esc(l.en)} <button type="button" class="icon-btn" data-replay="${k}">🔊</button></p><details><summary class="small muted">日本語訳</summary><p class="small">${U.esc(l.ja)}</p></details></div></div>`
+          ? `<div class="bubble them"><span class="who">☆</span><div><p class="en">${U.esc(l.en)} <button type="button" class="icon-btn" data-replay="${k}">🔊</button></p>${jaSubHTML(l.ja)}</div></div>`
           : `<div class="bubble you ${l.answered ? '' : 'turn'}"><div><p class="small"><b>あなたの番：</b>${U.esc(l.ja)}</p>
               ${l.answered ? `${l.heard ? `<p class="small">あなた：<span class="en">${U.esc(l.heard)}</span>（${l.score}点）</p>` : ''}<p class="en model">例：${U.esc(l.en)} <button type="button" class="icon-btn" data-say="${U.esc(l.en)}">🔊</button></p>` : ''}
               </div><span class="who">★</span></div>`).join('')}
@@ -282,6 +300,7 @@ function talkRole(id, el) {
       <div id="roleCtl"></div>
     </div>`;
     U.$$('[data-replay]', el).forEach(b => b.onclick = () => speakThem(s.role[+b.dataset.replay]));
+    bindJaSub('roleJa', el, render);
     U.$$('[data-say]', el).forEach(b => b.onclick = () => Speech.play(b.dataset.say));
     const st = U.$('#startBtn', el);
     if (st) st.onclick = () => advance();
@@ -297,9 +316,10 @@ function talkRole(id, el) {
       const rm = U.$('#roleMic', el);
       if (rm) rm.onclick = () => {
         const h = U.$('#roleHeard', el);
-        h.hidden = false; h.innerHTML = '<span class="listening">● 聞いています…</span>';
+        h.hidden = false; h.innerHTML = `<span class="listening">${U.esc(Mic.prepText('● 聞いています… 英語で答えてください'))}</span>`;
         rm.disabled = true;
         Mic.listen({
+          onstart: () => { h.innerHTML = '<span class="listening">● 聞いています… 英語で答えてください</span>'; },
           onresult: (alts, fin) => {
             if (!fin) { h.innerHTML = `<span class="listening">● ${U.esc(alts[0])}</span>`; return; }
             const r = alts.map(a => ({ a, s: compareSpeech(cur.en, a).score })).sort((x, y) => y.s - x.s)[0];

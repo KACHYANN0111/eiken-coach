@@ -44,6 +44,11 @@ Views.settings = (args, el) => {
     </div>
   </div>
 
+  <div class="card">
+    <h2>💬 英会話</h2>
+    ${sw('jaSub', '日本語字幕', '質疑応答・AI会話・ロールプレイで、英文の下に日本語訳を表示します（オフにすると訳はタップしたときだけ出ます）')}
+  </div>
+
   <div class="card" id="aiKeyCard">
     <h2>🤖 AI会話</h2>
     ${PWA.embedded

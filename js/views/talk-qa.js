@@ -160,6 +160,7 @@ function talkQaRun(topicId, el) {
   <div class="quiz-head"><a href="#talk/qa" class="back">← テーマ</a><span>${head}</span><span id="qaProg"></span></div>
   <div class="card ai-chat">
     <label class="chk small"><input type="checkbox" id="qaShow" ${showText ? 'checked' : ''}> 質問の英文を表示する（オフにすると聞き取りの練習になります）</label>
+    ${jaSubToggle('qaJa')}
     <div class="chat" id="chat"></div>
     <div id="qaCtl"></div>
     <p class="small muted" id="chatNote"></p>
@@ -167,6 +168,7 @@ function talkQaRun(topicId, el) {
   <div id="chatSummary"></div>`;
   const chatEl = U.$('#chat', el), ctl = U.$('#qaCtl', el), note = U.$('#chatNote', el);
   U.$('#qaShow', el).onchange = e => { showText = e.target.checked; Store.setSetting('qaShowText', showText); draw(); };
+  bindJaSub('qaJa', el, () => draw());
 
   const say = t => Speech.play([{ sp: 'W', t }], { rate: 0.92 });
 
@@ -176,9 +178,9 @@ function talkQaRun(topicId, el) {
       if (m.who === 'app') return `<div class="bubble them"><span class="who">🧑‍🏫</span><div>
         ${showText || m.revealed ? `<p class="en">${U.esc(m.text)} <button type="button" class="icon-btn" data-say="${k}" title="聞く">🔊</button></p>`
           : `<p><button type="button" class="btn small-btn" data-say="${k}">🔊 もう一度聞く</button> <button type="button" class="btn small-btn" data-reveal="${k}">英文を見る</button></p>`}
-        ${m.ja ? `<details><summary class="small muted">日本語訳</summary><p class="small">${U.esc(m.ja)}</p></details>` : ''}</div></div>`;
+        ${jaSubHTML(m.ja)}</div></div>`;
       if (m.who === 'sample') return `<div class="qa-sample"><div class="small muted">📘 見本の答え（Q. ${U.esc(m.q)}）</div>
-        <p class="en"><b>${U.esc(m.text)}</b> <button type="button" class="icon-btn" data-say="${k}" title="聞く">🔊</button></p><p class="small">${U.esc(m.ja)}</p></div>`;
+        <p class="en"><b>${U.esc(m.text)}</b> <button type="button" class="icon-btn" data-say="${k}" title="聞く">🔊</button></p>${jaSubHTML(m.ja)}</div>`;
       const c = m.check;
       return `<div class="bubble you"><div><p class="en">${U.esc(m.text)}</p>
         ${c ? `<div class="qa-fb"><span class="qa-tags">${['', '💪', '👍', '🌟'][c.level]} ${c.n}語${c.reason ? '<span class="pill">理由</span>' : ''}${c.example ? '<span class="pill">具体例</span>' : ''}</span><div class="small">${U.esc(c.tip)}</div>
@@ -233,10 +235,16 @@ function talkQaRun(topicId, el) {
       const inp = U.$('#chatText', ctl);
       mb.textContent = '■ 止める';
       mb.classList.add('rec-on');
-      note.innerHTML = '<span class="listening">● 聞いています… 英語で答えてください</span>';
+      const LISTEN = '● 聞いています… 英語で答えてください';
+      note.innerHTML = `<span class="listening">${U.esc(Mic.prepText(LISTEN))}</span>`;
       Mic.listen({
-        onresult: (alts, fin) => { inp.value = alts[0]; if (fin) { note.textContent = ''; const v = inp.value.trim(); inp.value = ''; if (v) answer(v); } },
-        onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span> ${U.esc(Mic.typingTip())}`; },
+        onstart: () => { note.innerHTML = `<span class="listening">${LISTEN}</span>`; },
+        onresult: (alts, fin) => {
+          inp.value = alts[0];
+          if (!fin) { note.innerHTML = `<span class="listening">● ${U.esc(alts[0])}</span>`; return; }
+          note.textContent = ''; const v = inp.value.trim(); inp.value = ''; if (v) answer(v);
+        },
+        onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span> ${U.esc(Mic.typingTip(code))}`; },
         onend: () => { mb.textContent = '🎤 話す'; mb.classList.remove('rec-on'); if (U.$('.listening', note)) note.textContent = ''; }
       });
     };

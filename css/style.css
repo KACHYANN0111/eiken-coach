@@ -492,6 +492,7 @@ textarea.answer { font-family: var(--en); font-size: 1.05rem; line-height: 1.7; 
 .rec-on { background: var(--ng) !important; border-color: var(--ng) !important; color: #fff !important; }
 .heard { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
 .listening { color: var(--ng); font-weight: 700; }
+.ja-sub { color: var(--muted); margin: 2px 0 0; }
 .heard-head { display: flex; justify-content: space-between; font-size: 1.15rem; margin-bottom: 6px; }
 .heard-head.ok { color: var(--ok); } .heard-head.mid { color: var(--warn); } .heard-head.ng { color: var(--ng); }
 .word-check { margin: 8px 0 4px; line-height: 2; }

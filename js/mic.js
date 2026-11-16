@@ -8,24 +8,37 @@
  * ========================================================= */
 const Mic = {
   Rec: window.SpeechRecognition || window.webkitSpeechRecognition || null,
+  // iPhone / iPad（iPadOS は Mac と名乗るので、タッチ対応かで見分ける）
+  IOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
   supported() { return !!this.Rec && !(window.PWA && PWA.embedded); },
-  current: null,      // 聞いている間だけ値が入る（「■ 止める」の判定用）
+  current: null,      // 聞いている間（準備中も含む）だけ値が入る（「■ 止める」の判定用）
   session: null,
+  running: null,      // ブラウザ側でまだ動いている認識（画面側で区切ったあとも、終わるまで入る）
   fails: 0,           // 続けて失敗した回数（成功すると 0 に戻す）
-  SILENCE_MS: 2500,   // 文字が増えなくなってからこの時間で区切る（iPhone は自動で確定しないことがある）
-  WAIT_MS: 10000,     // 何も聞こえないまま、この時間で終える
+  SILENCE_MS: 2500,   // 文字が増えなくなってからこの時間で区切る（iPhone は 4秒）
+  WAIT_MS: 10000,     // 何も聞こえないまま、この時間で終える（iPhone は 8秒）
   MAX_MS: 30000,      // 1回に聞く最長時間
+  CUE: 'Okay, go ahead.',
 
-  // 1回話した内容を認識する。onresult(候補文字列の配列, 確定したか)
+  /* iPhone（iOS 27 など）の音声認識には、聞いている途中でアプリが stop()/abort() で止めると、
+   * 次から「マイクは動いているのに文字が出ない」状態になる不具合がある（WebKit bug 321436）。
+   * 報告されている回避策に合わせて、iPhone では
+   *  ・認識をアプリから止めない（画面側だけ先に区切り、認識は自然に終わるのを待つ）
+   *  ・短い英語の読み上げ（合図）が終わった直後に聞き始める
+   *  ・前の認識が終わってから次を始める
+   * 他の端末では、従来どおり止めて確定させる。 */
+
+  // 1回話した内容を認識する。onresult(候補文字列の配列, 確定したか) / onstart()：聞き始めた
   // ・確定の結果は1回だけ返す。確定のあとに来るエラー（効果音などで中断された等）は無視する
   // ・確定前に止まったときは、そこまで聞こえた文で確定する
   // ・押した直後の失敗（読み上げ音声からの切り替えなど）は一度だけ自動でやり直す
-  listen({ lang = 'en-US', onresult, onend, onerror } = {}) {
+  listen({ lang = 'en-US', onresult, onend, onerror, onstart } = {}) {
     if (!this.supported()) { if (onerror) onerror('unsupported'); return null; }
-    this.drop();                       // 前の認識は黙って終わらせる（後から届くイベントも無視）
-    try { Speech.stop(); } catch (e) {}
+    const soft = this.IOS;
+    this.drop();                       // 前の回は画面から切り離す（後から届くイベントは無視）
+    if (!soft) { try { Speech.stop(); } catch (e) {} }
     const self = this;
-    const s = { r: null, last: null, final: false, stopping: false, byUser: false, done: false, retried: false, firstErr: null, err: null, t0: 0, timers: [] };
+    const s = { r: null, last: null, final: false, stopping: false, byUser: false, started: false, done: false, retried: false, firstErr: null, err: null, t0: 0, timers: [] };
     const later = (fn, ms) => s.timers.push(setTimeout(() => { if (!s.done) fn(); }, ms));
     s.close = (notify = true) => {
       if (s.done) return;
@@ -51,6 +64,12 @@ const Mic = {
       s.stopping = true;
       s.byUser = !!byUser;
       clearTimeout(s.silence);
+      if (soft) {
+        // iPhone：認識は止めずに自然に終わらせ、画面だけ先に区切る
+        if (s.last) s.giveFinal(s.last);
+        else if (!byUser) s.fail(s.r ? 'deaf' : 'no-speech');
+        return s.close();
+      }
       try { s.r.stop(); } catch (e) {}
       // 止めても終わりの合図が来ない端末向けの保険
       later(() => { try { s.r.abort(); } catch (e) {} if (s.last) s.giveFinal(s.last); else if (!s.byUser) s.fail('no-speech'); s.close(); }, 2000);
@@ -58,11 +77,13 @@ const Mic = {
     const begin = () => {
       const r = new self.Rec();
       s.r = r; s.err = null; s.t0 = Date.now();
+      self.running = r;
       r.lang = lang;
       r.interimResults = true;
       r.maxAlternatives = 3;
       r.continuous = false;
       const mine = () => !s.done && s.r === r;
+      r.onstart = () => { if (mine() && !s.started) { s.started = true; if (onstart) onstart(); } };
       r.onresult = e => {
         if (!mine() || s.final) return;
         const list = [...e.results];
@@ -74,16 +95,18 @@ const Mic = {
         if (list.every(x => x.isFinal)) {
           s.stopping = true;
           s.giveFinal(alts);
-          try { r.stop(); } catch (er) {}
+          if (soft) s.close();                  // iPhone：認識はそのまま自然に終わらせる
+          else { try { r.stop(); } catch (er) {} }
           return;
         }
         const changed = !s.last || s.last[0] !== alts[0];
         s.last = alts;
         if (onresult) onresult(alts, false);
-        if (changed) { clearTimeout(s.silence); s.silence = setTimeout(() => { if (mine()) s.stopNow(false); }, self.SILENCE_MS); }
+        if (changed) { clearTimeout(s.silence); s.silence = setTimeout(() => { if (mine()) s.stopNow(false); }, soft ? 4000 : self.SILENCE_MS); }
       };
       r.onerror = e => { if (mine()) s.err = e.error || 'error'; };
       r.onend = () => {
+        if (self.running === r) self.running = null;
         if (!mine()) return;
         clearTimeout(s.silence);
         if (s.final) return s.close();
@@ -95,7 +118,7 @@ const Mic = {
         if (!s.retried && quick && !['not-allowed', 'service-not-allowed', 'language-not-supported', 'no-speech'].includes(code)) {
           s.retried = true;
           s.firstErr = code;
-          later(() => { try { begin(); } catch (er) { s.fail(code); s.close(); } }, 400);
+          later(() => (soft ? softStart() : tryBegin()), 400);
           return;
         }
         // やり直しても失敗したときは、最初の原因を伝える（「声が聞こえない」は除く）
@@ -104,13 +127,57 @@ const Mic = {
         s.close();
       };
       r.start();
+      // 何も聞こえないまま／長すぎるときは区切る（時間は聞き始めた時点から数える）
+      later(() => { if (s.r === r && !s.last) s.stopNow(false); }, soft ? 8000 : self.WAIT_MS);
+      later(() => { if (s.r === r) s.stopNow(false); }, self.MAX_MS);
     };
+    const tryBegin = () => { try { begin(); return true; } catch (e) { s.fail(s.firstErr || 'start'); s.close(); return false; } };
+    // iPhone：前の認識が終わるのを待つ → 合図を読み上げる → 読み上げの直後に聞き始める
+    const softStart = () => self.whenIdle(() => { if (!s.done) self.cue(() => { if (!s.done) tryBegin(); }); });
     this.session = s;
     this.current = s;
-    try { begin(); } catch (e) { s.fail('start'); s.close(); return null; }
-    later(() => { if (!s.last) s.stopNow(false); }, this.WAIT_MS);
-    later(() => s.stopNow(false), this.MAX_MS);
+    if (soft) softStart();
+    else if (!tryBegin()) return null;
     return s;
+  },
+
+  // 前の認識（画面からは切り離し済み）が自然に終わるのを待つ（最大2.5秒）
+  whenIdle(cb) {
+    if (!this.running) return cb();
+    const t0 = Date.now();
+    const timer = setInterval(() => {
+      if (!this.running || Date.now() - t0 > 2500) { clearInterval(timer); this.running = null; cb(); }
+    }, 100);
+  },
+  // 読み上げ中ならその終わりを、そうでなければ短い合図を読み上げて、その直後に cb
+  cue(cb) {
+    let fired = false;
+    const go = () => { if (fired) return; fired = true; setTimeout(cb, 350); };
+    const ss = window.speechSynthesis;
+    if (!ss) return go();
+    if (ss.speaking || ss.pending) {
+      const t0 = Date.now();
+      const timer = setInterval(() => {
+        if ((!ss.speaking && !ss.pending) || Date.now() - t0 > 20000) { clearInterval(timer); go(); }
+      }, 100);
+      return;
+    }
+    try {
+      const u = new SpeechSynthesisUtterance(this.CUE);
+      u.lang = 'en-US';
+      u.rate = 1;
+      u.volume = 0.8;
+      const v = speechSynthesis.getVoices().find(x => /^en(-|_)US/i.test(x.lang));
+      if (v) u.voice = v;
+      u.onend = go;
+      u.onerror = go;
+      ss.speak(u);
+    } catch (e) { return go(); }
+    setTimeout(go, 3500);   // 読み上げの終わりが届かないときの保険
+  },
+  // 聞き始めるまでの表示（iPhone は合図の読み上げのあとに聞き始める）
+  prepText(listening) {
+    return this.IOS ? `🔈 準備中…「${this.CUE.replace(/\.$/, '')}」の合図のあとに話してください` : listening;
   },
 
   // 止める。keep:true なら、そこまで聞こえた英語で答えを確定する（「■ 止める」ボタン用）
@@ -122,11 +189,12 @@ const Mic = {
     this.drop(true);
   },
   // 結果を捨てて終える（notify:true なら onend だけは呼んでボタン表示を戻す）
+  // iPhone では認識そのものは止めない（止めると次から文字が出なくなる不具合があるため）
   drop(notify = false) {
     const s = this.session;
     if (!s) return;
     s.close(notify);
-    try { s.r && (s.r.abort ? s.r.abort() : s.r.stop()); } catch (e) {}
+    if (!this.IOS) { try { s.r && (s.r.abort ? s.r.abort() : s.r.stop()); } catch (e) {} }
   },
 
   errorMessage(code) {
@@ -139,13 +207,14 @@ const Mic = {
       'audio-capture': 'マイクの準備ができませんでした。音楽や動画を止めてから、もう一度🎤を押してください。',
       'network': '音声認識に接続できませんでした。通信環境を確認して、もう一度試してください。',
       'start': 'マイクの準備ができませんでした。少し待ってから、もう一度🎤を押してください。',
+      'deaf': '声が文字になりませんでした。話しても文字が出ないときは iPhone の不具合のことがあります。アプリを上にスワイプして完全に閉じ、開き直してから試してください。',
       'unsupported': 'このブラウザは音声認識に対応していません。声に出して言ってから「答えを見る」で確認しましょう。'
     };
     return known[code] || `音声認識がうまく動きませんでした（${code}）。もう一度🎤を押してください。`;
   },
-  // 何度か失敗したときの案内（入力欄がある画面用）
-  typingTip() {
-    return this.fails >= 2 ? '何度もうまくいかないときは、入力欄をタップして、キーボードの🎤（音声入力）で話しても答えられます。' : '';
+  // 文字にならなかった・何度か失敗したときの案内（入力欄がある画面用）
+  typingTip(code) {
+    return code === 'deaf' || this.fails >= 2 ? '入力欄をタップして、キーボードの🎤（音声入力）で話しても答えられます（こちらは確実に文字になります）。' : '';
   }
 };
 

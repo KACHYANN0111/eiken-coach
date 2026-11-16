@@ -55,6 +55,7 @@ async function talkAiChat(topicId, el) {
   <div class="quiz-head"><a href="#talk/ai" class="back">← テーマ</a><span>${topic.icon} ${U.esc(topic.name)}</span><button type="button" class="btn small-btn" id="endBtn">終わる</button></div>
   <div class="card ai-chat">
     <label class="chk small"><input type="checkbox" id="autoSpeak" ${autoSpeak ? 'checked' : ''}> AIの返事を自動で読み上げる</label>
+    ${jaSubToggle('aiJa')}
     <div class="chat" id="chat"></div>
     <div class="chat-input">
       ${useMic ? '<button type="button" class="btn primary mic-btn" id="chatMic">🎤 話す</button>' : ''}
@@ -70,10 +71,11 @@ async function talkAiChat(topicId, el) {
 
   const chatEl = U.$('#chat', el), note = U.$('#chatNote', el);
   U.$('#autoSpeak', el).onchange = e => { autoSpeak = e.target.checked; Store.setSetting('chatAutoSpeak', autoSpeak); if (!autoSpeak) Speech.stop(); };
+  bindJaSub('aiJa', el, () => draw(busy));
 
   function draw(thinking) {
     chatEl.innerHTML = view.map((m, k) => m.who === 'ai'
-      ? `<div class="bubble them"><span class="who">🤖</span><div><p class="en">${U.esc(m.text)} <button type="button" class="icon-btn" data-say="${k}" title="聞く">🔊</button></p>${m.ja ? `<details><summary class="small muted">日本語訳</summary><p class="small">${U.esc(m.ja)}</p></details>` : ''}</div></div>`
+      ? `<div class="bubble them"><span class="who">🤖</span><div><p class="en">${U.esc(m.text)} <button type="button" class="icon-btn" data-say="${k}" title="聞く">🔊</button></p>${jaSubHTML(m.ja)}</div></div>`
       : `<div class="bubble you"><div><p class="en">${U.esc(m.text)}</p>${m.correction ? `<div class="fix"><span class="small">💡 より自然に：</span><span class="en">${U.esc(m.correction)}</span> <button type="button" class="icon-btn" data-fix="${k}" title="聞く">🔊</button>${m.tip ? `<div class="small muted">${U.esc(m.tip)}</div>` : ''}</div>` : ''}</div><span class="who">🙂</span></div>`).join('')
       + (thinking ? '<div class="bubble them"><span class="who">🤖</span><div><p class="muted">考え中…</p></div></div>' : '');
     U.$$('[data-say]', chatEl).forEach(b => b.onclick = () => Speech.play([{ sp: 'W', t: view[+b.dataset.say].text }]));
@@ -131,13 +133,16 @@ async function talkAiChat(topicId, el) {
     const inp = U.$('#chatText', el);
     mb.textContent = '■ 止める';
     mb.classList.add('rec-on');
-    note.innerHTML = '<span class="listening">● 聞いています… 英語で話してください</span>';
+    const LISTEN = '● 聞いています… 英語で話してください';
+    note.innerHTML = `<span class="listening">${U.esc(Mic.prepText(LISTEN))}</span>`;
     Mic.listen({
+      onstart: () => { note.innerHTML = `<span class="listening">${LISTEN}</span>`; },
       onresult: (alts, fin) => {
         inp.value = alts[0];
-        if (fin) { note.textContent = ''; const v = inp.value; inp.value = ''; send(v); }
+        if (!fin) { note.innerHTML = `<span class="listening">● ${U.esc(alts[0])}</span>`; return; }
+        note.textContent = ''; const v = inp.value; inp.value = ''; send(v);
       },
-      onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span> ${U.esc(Mic.typingTip())}`; },
+      onerror: code => { note.innerHTML = `<span class="mic-off">${U.esc(Mic.errorMessage(code))}</span> ${U.esc(Mic.typingTip(code))}`; },
       onend: () => { mb.textContent = '🎤 話す'; mb.classList.remove('rec-on'); if (U.$('.listening', note)) note.textContent = ''; }
     });
   };
