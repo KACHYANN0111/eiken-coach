@@ -7,7 +7,7 @@ async function talkAiMenu(el) {
   const how = mode === 'sample'
     ? '<p class="small">claude.ai のAIが会話相手になります（初回に利用の許可を求められます）。claude.ai の中ではアプリのマイク機能が使えないため、英語は<b>文字で入力</b>してください（iPhone は<b>キーボードの🎤</b>を押して話すと文字になります）。返事は音声で読み上げます。</p>'
     : mode === 'api'
-      ? `<p class="small">${Mic.supported() ? '🎤 マイクで英語を話すと、AIが英語で返事をして音声で読み上げます。' : '英語を入力すると、AIが英語で返事をして音声で読み上げます。'}あなたのAPIキーを使います（利用料はAnthropicのアカウントに請求されます）。</p>`
+      ? `<p class="small">${Mic.supported() ? '🎤 マイクで英語を話すと、AIが英語で返事をして音声で読み上げます。' : '英語を入力すると、AIが英語で返事をして音声で読み上げます。'}あなたのAPIキーを使います（利用料は${AIChat.providerName()}のアカウントに請求されます）。</p>`
       : '';
   const noKey = `<div class="card">
       <h2>APIキーなしで英語の質疑応答をする</h2>
@@ -19,13 +19,13 @@ async function talkAiMenu(el) {
   const setup = embedded
     ? `<div class="card callout"><b>このページでは、AI会話はまだ使えません。</b><p class="small">AIの利用許可が設定されていないか、claude.ai にログインしていない可能性があります。</p></div>${noKey}`
     : `${noKey}<div class="card callout">
-        <b>AI会話をアプリ版で使うには、Anthropic の APIキーが必要です</b>
+        <b>AI会話をアプリ版で使うには、OpenAI か Anthropic の APIキーが必要です</b>
         <ol class="small">
-          <li>パソコンで <span class="en">console.anthropic.com</span> にアクセスし、アカウントを作成（利用料は従量課金です）</li>
-          <li>「API Keys」でキーを作成してコピー</li>
-          <li>このアプリの「⚙️ 設定」→「AI会話」にキーを貼り付けて保存</li>
+          <li><b>OpenAI</b>：<span class="en">platform.openai.com</span> の「API keys」でキーを作成（Billing でクレジットの追加が必要。ChatGPT の有料プランとは別です）</li>
+          <li><b>Anthropic</b>：<span class="en">console.anthropic.com</span> の「API Keys」でキーを作成</li>
+          <li>このアプリの「⚙️ 設定」→「AI会話」にキーを貼り付けて保存（どちらのキーかは自動で見分けます）</li>
         </ol>
-        <p class="small muted">キーはこの端末の中だけに保存され、学習記録やクラウドには送られません。使いすぎを防ぐため、Console で利用上限（Spend limit）を設定しておくと安心です。</p>
+        <p class="small muted">キーはこの端末の中だけに保存され、学習記録やクラウドには送られません。使いすぎを防ぐため、利用上限を設定しておくと安心です。</p>
         <a class="btn primary" href="#settings">設定を開く</a>
       </div>
       <p class="small muted">APIキーがなくても、「質疑応答」「話して練習」「ロールプレイ」で声に出す練習ができます。</p>`;

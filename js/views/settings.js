@@ -53,14 +53,19 @@ Views.settings = (args, el) => {
     <h2>🤖 AI会話</h2>
     ${PWA.embedded
       ? '<p class="small">claude.ai 版では、APIキーなしで claude.ai のAIと会話できます（「💬 英会話」→「🤖 AIと会話」）。</p>'
-      : `<p class="small">「💬 英会話」の「🤖 AIと会話」で、英語で話しかけるとAIが英語で答えてくれます。使うには Anthropic の APIキーが必要です（<span class="en">console.anthropic.com</span> で作成。利用料は従量課金で、あなたのアカウントに請求されます）。</p>
-        <p class="small muted">キーはこの端末の中だけに保存され、学習記録・クラウド・バックアップファイルには含まれません。使いすぎを防ぐため、Console で利用上限（Spend limit）を設定しておくと安心です。共用の端末では保存しないでください。</p>
+      : `<p class="small">「💬 英会話」の「🤖 AI会話」で、英語で話しかけるとAIが英語で答えてくれます。使うには <b>OpenAI（ChatGPT）か Anthropic（Claude）の APIキー</b>が必要です。持っている方のキーを貼り付けてください（どちらのキーかは自動で見分けます）。利用料は従量課金で、あなたのアカウントに請求されます。</p>
+        <p class="small muted">OpenAI は <span class="en">platform.openai.com</span>、Anthropic は <span class="en">console.anthropic.com</span> でキーを作れます。キーはこの端末の中だけに保存され、学習記録・クラウド・バックアップファイルには含まれません。使いすぎを防ぐため、利用上限を設定しておくと安心です。共用の端末では保存しないでください。</p>
         <div class="key-row">
-          <input id="apiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${AIChat.getKey() ? '保存済み（変更する場合は新しいキーを入力）' : 'sk-ant- で始まるAPIキーを貼り付け'}" aria-label="Anthropic APIキー">
+          <input id="apiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${AIChat.provider() ? '保存済み（変更する場合は新しいキーを入力）' : 'sk- で始まるAPIキーを貼り付け'}" aria-label="APIキー（OpenAI または Anthropic）">
           <button type="button" class="btn primary" id="saveKey">保存</button>
-          ${AIChat.getKey() ? '<button type="button" class="btn danger" id="clearKey">削除</button>' : ''}
+          ${AIChat.provider() ? '<button type="button" class="btn danger" id="clearKey">削除</button>' : ''}
         </div>
-        <p class="small">${AIChat.getKey() ? '✅ APIキーが保存されています。' : 'まだAPIキーは保存されていません。'}</p>`}
+        <p class="small">${AIChat.provider() ? `✅ ${AIChat.providerName()} のAPIキーが保存されています。` : 'まだAPIキーは保存されていません（キーがなくても「🗣️ 質疑応答」は使えます）。'}</p>
+        ${AIChat.provider() === 'openai' ? `<label class="small" for="oaiModel">OpenAI のモデル（空欄なら自動で選びます。うまく動かないときだけ入力）</label>
+        <div class="key-row">
+          <input id="oaiModel" autocomplete="off" autocapitalize="off" spellcheck="false" value="${U.esc(AIChat.openaiModel())}" placeholder="自動（${U.esc(AIChat.OPENAI_MODELS[0])} など）">
+          <button type="button" class="btn" id="saveModel">モデルを保存</button>
+        </div>` : ''}`}
   </div>
 
   <div class="card">
@@ -77,11 +82,13 @@ Views.settings = (args, el) => {
   if (sk) sk.onclick = () => {
     const v = U.$('#apiKey', el).value.trim();
     if (!v) return U.toast('APIキーを入力してください');
-    if (!/^sk-ant-/.test(v)) return U.toast('Anthropic の APIキーは sk-ant- で始まります');
+    if (!/^sk-/.test(v)) return U.toast('APIキーは sk- で始まります（OpenAI・Anthropic とも）');
     AIChat.setKey(v);
-    U.toast('APIキーを保存しました');
+    U.toast(`${AIChat.isOpenAIKey(v) ? 'OpenAI' : 'Anthropic'} のAPIキーを保存しました`);
     Views.settings(args, el);
   };
+  const sm = U.$('#saveModel', el);
+  if (sm) sm.onclick = () => { AIChat.setOpenAIModel(U.$('#oaiModel', el).value); U.toast(AIChat.openaiModel() ? `モデルを「${AIChat.openaiModel()}」にしました` : 'モデルを自動にしました'); Views.settings(args, el); };
   const ck = U.$('#clearKey', el);
   if (ck) ck.onclick = () => { AIChat.clearKey(); U.toast('APIキーを削除しました'); Views.settings(args, el); };
 

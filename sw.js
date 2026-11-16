@@ -1,5 +1,5 @@
 /* スマホアプリ版（PWA）のサービスワーカー：build.js が自動生成（手で編集しない） */
-const CACHE = 'eiken-coach-62bfc89200';
+const CACHE = 'eiken-coach-1749808b6d';
 const ASSETS = [
   "./",
   "index.html",
