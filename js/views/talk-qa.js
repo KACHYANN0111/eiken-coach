@@ -1,6 +1,8 @@
 /* 英会話：英語で質疑応答（AIなし・オフラインでも使える）
  * アプリが英語で質問 → 声（または入力）で答える → 相づち＋次の質問が返ってくる。
  * 1つの質問につき、メインの質問＋続けて聞く質問2つで会話を続ける。
+ * 続けて聞く質問・相づち・アプリ自身の話は、答えの内容（話題）に合わせて TALK_FLOW から毎回選び、
+ * 同じ文はなるべく繰り返さない（話題が見つからないときは、データの「続けて聞く質問」を使う）。
  * 内容の正しさは判定せず、「文で答えたか・理由・具体例・よくある間違い」をその場でアドバイスする。 */
 
 const qaPick = a => a[Math.floor(Math.random() * a.length)];
@@ -100,15 +102,96 @@ function qaCheck(text, question) {
 }
 
 // 答えに合わせた相づち（英語）
-function qaReact(text) {
-  const t = text.toLowerCase();
-  if (/\bnot bad\b/.test(t)) return qaPick(['Not bad? Good to hear.', 'Oh, nice.']);
-  if (/\b(not really|don't like|do not like|didn't like|hate|tired|busy|hard|difficult|stress|stressed|sick|sad|boring|bored|terrible|problem|missed|lost|failed|can't|cannot)\b/.test(t))
-    return qaPick(['Oh, I see. That sounds tough.', 'I understand.', 'Oh no. I know how that feels.']);
-  if (/\b(love|like|enjoy|enjoyed|fun|great|happy|favorite|favourite|exciting|interesting|delicious|beautiful|amazing|wonderful|best|nice|relaxing)\b/.test(t))
-    return qaPick(['That sounds great!', 'Oh, nice!', 'That sounds like fun!', 'Wow, I like that!']);
-  if (/\bbecause\b/.test(t)) return qaPick(['That makes sense.', 'I see what you mean.']);
-  return qaPick(['I see.', 'Oh, really?', 'Interesting!', 'Got it.', 'Thanks for telling me.']);
+/* ---------- 会話パターン（相づち・自分の話・深掘り） ---------- */
+// 使った文（英語）を覚えておき、なるべく同じ文を繰り返さない（アプリを開いている間はずっと有効）
+const QA_USED = new Set();     // 相づち・つなぎ・感想
+const QA_USED_Q = new Set();   // 深掘りの質問
+const QA_RECENT = [];          // 直近に使った文（使い回すときも、すぐには繰り返さない）
+// pool：[英語, 日本語訳] の配列。まだ使っていないものから選ぶ。全部使ったら、直近の文を除いて使い回す
+function qaFresh(pool, used = QA_USED) {
+  let cand = pool.filter(p => !used.has(p[0]));
+  if (!cand.length) {
+    pool.forEach(p => used.delete(p[0]));
+    cand = pool.filter(p => !QA_RECENT.includes(p[0]));
+    if (!cand.length) cand = pool;
+  }
+  const pick = qaPick(cand);
+  used.add(pick[0]);
+  QA_RECENT.push(pick[0]);
+  if (QA_RECENT.length > 8) QA_RECENT.shift();
+  return pick;
+}
+// 答えの中でいちばん先に出てきた話題。その話題の質問を全部聞き終えていたら、もう一度使えるように戻す
+function qaTopicOf(text) {
+  let best = null, at = Infinity;
+  TALK_FLOW.topics.forEach(t => {
+    const m = String(text).match(t.re);
+    if (m && m.index < at) { best = t; at = m.index; }
+  });
+  if (best && best.qs.every(q => QA_USED_Q.has(q[0]))) best.qs.forEach(q => QA_USED_Q.delete(q[0]));
+  return best;
+}
+// 相手（アプリ）に質問を返したか（How about you? など）
+function qaAskedBack(text) {
+  return /\b(how about you|what about you|and you|how about yourself|what do you think|do you like|have you ever|what's yours|what is yours)\b/i.test(text);
+}
+const QA_NEG = /\b(not really|don't like|do not like|didn't like|don't enjoy|hate|tired|exhausted|busy|stress|stressed|stressful|sick|sad|boring|bored|terrible|awful|problem|problems|missed|lost|failed|worried|lonely|(?:so|very|too|really|it's|it is|was) (?:hard|difficult))\b/;
+const QA_POS = /\b(love|loved|like|liked|enjoy|enjoyed|fun|great|happy|favorite|favourite|exciting|excited|interesting|delicious|beautiful|amazing|wonderful|best|nice|relaxing|good)\b/;
+// 答えに合った相づち [英語, 訳]
+function qaReact(text, check) {
+  const R = TALK_FLOW.react, t = String(text).toLowerCase();
+  let pool;
+  if (/\bnot bad\b/.test(t)) pool = R.notbad;
+  else if (/\b(me too|same here|same as you)\b/.test(t)) pool = R.same;
+  else if (QA_NEG.test(t)) pool = R.negative;
+  else if (/\bnever\b/.test(t)) pool = R.never;
+  else if (/\b(\d+|three|four|five|six|seven|eight|nine|ten|many) years\b|\bsince i was (a kid|a child|little|young)\b/.test(t)) pool = R.longtime;
+  else if (QA_POS.test(t) && /\b(went|visited|got|won|passed|bought|going to|will go)\b/.test(t)) pool = R.goodnews;
+  else if (QA_POS.test(t)) pool = R.positive;
+  else if (check && check.reason) pool = R.reason;
+  else if (check && check.example) pool = R.example;
+  else pool = R.neutral;
+  const r = qaFresh(pool);
+  // 長くしっかり答えたときは、ときどきほめる
+  if (check && check.n >= 18 && Math.random() < 0.5) { const l = qaFresh(R.long); return [`${l[0]} ${r[0]}`, l[1] + r[1]]; }
+  return r;
+}
+// 答えへの返事：相づち＋（質問を返されたら答える／ときどき自分の感想）＋次の質問
+// fixedQs：データにある「続けて聞く質問」の残り。話題が見つからないときに使う
+// flow：会話の状態 { topic：今話している話題, commented：前の返事で自分の感想を言ったか }
+function qaReply(text, check, fixedQs, flow) {
+  const en = [], ja = [];
+  const add = p => { en.push(p[0]); ja.push(p[1]); };
+  const found = text ? qaTopicOf(text) : null;
+  const topic = found || flow.topic;      // 答えに話題がなければ、今の話題を続ける
+  if (text) {
+    add(qaReact(text, check));
+    if (qaAskedBack(text)) { add(qaFresh((topic && topic.me) || TALK_FLOW.me)); flow.commented = true; }
+    else if (found && !flow.commented && Math.random() < 0.6) { add(qaFresh(found.comments)); flow.commented = true; }
+    else flow.commented = false;            // 感想は続けて言わない
+  }
+  flow.topic = topic;
+  let q = null, viaTopic = false;
+  if (topic) { q = qaFresh(topic.qs, QA_USED_Q); viaTopic = true; }   // 全部聞いたら、直近の質問を除いて使い回す
+  if (!q && fixedQs.length) q = [fixedQs[0], TALK_FLOW.followJa[fixedQs[0]] || ''];
+  if (!q) q = qaFresh(TALK_FLOW.general, QA_USED_Q);
+  const question = q[0];
+  // 話題の質問の前に、ときどきつなぎの一言（, で終わるものは次の文の頭を小文字に）
+  if (viaTopic && text && Math.random() < 0.4) {
+    const b = qaFresh(TALK_FLOW.bridges);
+    add(b);
+    if (b[0].endsWith(',')) q = [q[0].charAt(0).toLowerCase() + q[0].slice(1), q[1]];
+  }
+  add(q);
+  return { text: en.join(' '), ja: ja.join(''), q: question };
+}
+// ヒントに出す「使える表現」（表現集から：理由・例え／質問を返す／考える時間をかせぐ）
+function qaBankTips() {
+  if (typeof TALK_BANK === 'undefined') return '';
+  const card = id => { const [c, n] = id.split('-'); const cat = TALK_BANK.cats.find(x => x.id === c); return cat && cat.cards[+n - 1]; };
+  const picks = [qaPick(['opinion-5', 'opinion-6']), 'clarify-5', 'clarify-7'].map(card).filter(Boolean)
+    .map(k => qaPick(k.vs.filter(v => v.lv <= 2)));
+  return `<div class="small qa-hint">💬 使える表現：${picks.map(v => `<span class="en">${U.esc(v.en)}</span>（${U.esc(v.ja)}）`).join(' ／ ')}</div>`;
 }
 
 function qaNotice() {
@@ -154,6 +237,8 @@ function talkQaRun(topicId, el) {
   let qi = 0, stage = 0, askedMore = false, current = '', busy = false;
   const view = [];       // {who:'app'|'you'|'sample', ...}
   const answers = [];    // {text, check}
+  const asked = new Set();       // この回で聞いた質問（同じ質問を二度聞かない）
+  const flow = { topic: null, commented: false };   // 今の話題など（次のメインの質問で戻す）
   let showText = Store.setting('qaShowText') !== false;
 
   el.innerHTML = `
@@ -195,7 +280,7 @@ function talkQaRun(topicId, el) {
 
   // text：画面に出して読み上げる文 / q：答えのチェックやヒントに使う質問（省略時は今の質問のまま）
   function ask(text, ja, q) {
-    if (q) current = q;
+    if (q) { current = q; asked.add(q); }
     view.push({ who: 'app', text, ja });
     draw();
     say(text);
@@ -218,7 +303,7 @@ function talkQaRun(topicId, el) {
       </div>
       <div id="hintBox"></div>`;
     U.$('#hintBtn', ctl).onclick = () => {
-      U.$('#hintBox', ctl).innerHTML = `<p class="small qa-hint">答え方の例：<span class="en">${U.esc(askedMore ? 'For example, ... ／ Because ... ／ Also, ...' : qaHint(current))}</span></p>`;
+      U.$('#hintBox', ctl).innerHTML = `<p class="small qa-hint">答え方の例：<span class="en">${U.esc(askedMore ? 'For example, ... ／ Because ... ／ Also, ...' : qaHint(current))}</span></p>${qaBankTips()}`;
     };
     U.$('#passBtn', ctl).onclick = () => { if (!busy) { Speech.stop(); Mic.stop(); advance(null); } };
     U.$('#chatForm', ctl).onsubmit = e => {
@@ -259,27 +344,45 @@ function talkQaRun(topicId, el) {
     setTimeout(() => {
       busy = false;
       // 日本語だけの答え → 英語で言い直してもらう
-      if (c.ja && c.n < 3) { ask('Can you try saying that in English? Simple words are fine.'); return; }
+      if (c.ja && c.n < 3) { const m = qaFresh(TALK_FLOW.inEnglish); ask(m[0], m[1]); return; }
       answers.push({ text, check: c });
       Store.day().speaking++; Store.save();
       // 短すぎる答え → 一度だけ「もう少し教えて」と聞く
-      if (c.short && !askedMore) { askedMore = true; ask(`${qaPick(['I see.', 'Okay.', 'Oh, really?'])} Can you tell me a little more?`); return; }
-      advance(text);
+      // 話題が分かれば、その話題を深掘りする質問（例：I like traveling. → What country would you like to visit?）
+      if (c.short && !askedMore) {
+        askedMore = true;
+        if (qaTopicOf(text)) { const r = qaReply(text, c, [], flow); ask(r.text, r.ja, r.q); return; }
+        const lead = qaFresh(TALK_FLOW.moreLead), more = qaFresh(TALK_FLOW.more);
+        ask(`${lead[0]} ${more[0]}`, lead[1] + more[1]);
+        return;
+      }
+      advance(text, c);
     }, 500);
   }
 
   // 次の質問へ進む（text が null ならパス）
-  function advance(text) {
+  function advance(text, check) {
     askedMore = false;
     stage++;
     const it = items[qi];
-    const react = text ? qaReact(text) + ' ' : '';
-    if (stage <= it.follow.length) { ask(react + it.follow[stage - 1], null, it.follow[stage - 1]); return; }
+    if (stage <= it.follow.length) {
+      // 答えの話題（なければ今の話題）に合う質問を優先し、話題がないときはデータの質問を使う
+      const fixed = it.follow.filter(f => !asked.has(f));
+      const r = qaReply(text, check, fixed, flow);
+      QA_USED_Q.add(r.q);
+      ask(r.text, r.ja, r.q);
+      return;
+    }
     // この質問はおしまい：見本の答えを見せる
     Store.data.talk.qa = Store.data.talk.qa || {};
     Store.data.talk.qa[it.id] = qaCount(it.id) + 1;
     Store.save();
-    if (text) view.push({ who: 'app', text: qaPick(['Thank you. I enjoyed hearing about that!', 'Thanks for sharing. That was interesting!', 'Great, thank you!']) });
+    if (text) {
+      // 最後に質問を返されたら、短く答えてからお礼を言う
+      const me = qaAskedBack(text) ? qaFresh(((flow.topic || qaTopicOf(text)) || {}).me || TALK_FLOW.me) : null;
+      const th = qaFresh(TALK_FLOW.thanks);
+      view.push({ who: 'app', text: me ? `${me[0]} ${th[0]}` : th[0], ja: me ? me[1] + th[1] : th[1] });
+    }
     view.push({ who: 'sample', q: it.q, text: it.sample, ja: it.sampleJa });
     draw();
     if (text) say(view[view.length - 2].text);
@@ -289,8 +392,10 @@ function talkQaRun(topicId, el) {
       Speech.stop();
       if (last) return finish();
       qi++; stage = 0;
+      flow.topic = null; flow.commented = false;
       const nx = items[qi];
-      ask(`${qaPick(['Okay, next question.', 'Here is my next question.', 'Let me ask you something else.'])} ${nx.q}`, nx.ja, nx.q);
+      const lead = qaFresh(TALK_FLOW.next);
+      ask(`${lead[0]} ${nx.q}`, lead[1] + nx.ja, nx.q);
     };
   }
 

@@ -64,6 +64,8 @@ async function talkAiChat(topicId, el) {
         <button class="btn primary" id="sendBtn">送信</button>
       </form>
     </div>
+    <div class="btn-row qa-sub"><button type="button" class="btn small-btn" id="tipsBtn">💬 使える表現</button><a class="btn small-btn" href="#talk/bank">📚 表現集</a></div>
+    <div id="tipsBox"></div>
     ${useMic ? '' : '<p class="small muted">📱 iPhone：キーボードの🎤（音声入力）を押して英語で話すと、文字で入力できます（キーボードを English にしておく）。</p>'}
     <p class="small muted" id="chatNote"></p>
   </div>
@@ -72,6 +74,7 @@ async function talkAiChat(topicId, el) {
   const chatEl = U.$('#chat', el), note = U.$('#chatNote', el);
   U.$('#autoSpeak', el).onchange = e => { autoSpeak = e.target.checked; Store.setSetting('chatAutoSpeak', autoSpeak); if (!autoSpeak) Speech.stop(); };
   bindJaSub('aiJa', el, () => draw(busy));
+  U.$('#tipsBtn', el).onclick = () => { U.$('#tipsBox', el).innerHTML = qaBankTips(); };
 
   function draw(thinking) {
     chatEl.innerHTML = view.map((m, k) => m.who === 'ai'

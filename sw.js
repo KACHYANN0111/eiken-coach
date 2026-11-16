@@ -1,5 +1,5 @@
 /* スマホアプリ版（PWA）のサービスワーカー：build.js が自動生成（手で編集しない） */
-const CACHE = 'eiken-coach-2aaebe744e';
+const CACHE = 'eiken-coach-62bfc89200';
 const ASSETS = [
   "./",
   "index.html",
@@ -40,6 +40,8 @@ const ASSETS = [
   "js/data/speaking-p1-1.js",
   "js/data/talk.js",
   "js/data/talk-qa.js",
+  "js/data/talk-flow.js",
+  "js/data/talk-bank.js",
   "js/coach.js",
   "js/ai.js",
   "js/pwa.js",
@@ -58,6 +60,7 @@ const ASSETS = [
   "js/views/talk.js",
   "js/views/talk-ai.js",
   "js/views/talk-qa.js",
+  "js/views/talk-bank.js",
   "js/app.js",
   "icons/apple-touch-icon.png",
   "icons/favicon-32.png",

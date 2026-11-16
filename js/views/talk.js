@@ -11,7 +11,7 @@ const talkWeak = p => talkStat(p.id).last === 'ng';
 
 function talkTabs(active) {
   const weakN = talkAll().filter(talkWeak).length;
-  const t = [['#talk', 'top', '場面'], ['#talk/qa', 'qa', '🗣️ 質疑応答'], ['#talk/ai', 'ai', '🤖 AI会話'], ['#talk/practice/all/10', 'practice', '話す練習'], ['#talk/practice/weak/10', 'weak', `苦手(${weakN})`]];
+  const t = [['#talk', 'top', '場面'], ['#talk/qa', 'qa', '🗣️ 質疑応答'], ['#talk/ai', 'ai', '🤖 AI会話'], ['#talk/bank', 'bank', '📚 表現集'], ['#talk/practice/all/10', 'practice', '話す練習'], ['#talk/practice/weak/10', 'weak', `苦手(${weakN})`]];
   return `<div class="tabs">${t.map(([h, k, n]) => `<a href="${h}" class="${k === active ? 'on' : ''}">${n}</a>`).join('')}</div>`;
 }
 
@@ -43,6 +43,7 @@ Views.talk = (args, el) => {
   if (mode === 'role') return talkRole(a1, el);
   if (mode === 'ai') return a1 ? talkAiChat(a1, el) : talkAiMenu(el);
   if (mode === 'qa') return a1 ? talkQaRun(a1, el) : talkQaMenu(el);
+  if (mode === 'bank') return a1 ? talkBankCat(a1, el) : talkBankMenu(el);
 
   const all = talkAll();
   const done = all.filter(talkMastered).length;
@@ -56,12 +57,14 @@ Views.talk = (args, el) => {
       <li><b>フレーズを覚える</b>：場面を選んで、音声を聞きながら意味と使い方を確認</li>
       <li><b>話して練習</b>：日本語を見て、英語で言ってみる（マイクで判定）</li>
       <li><b>ロールプレイ</b>：相手のセリフを聞いて、自分の番で答える</li>
+      <li><b>表現集</b>：あいさつ・相づち・意見の言い方など、${typeof TALK_BANK !== 'undefined' ? TALK_BANK.cats.reduce((a, c) => a + c.cards.reduce((b, k) => b + k.vs.length, 0), 0) : ''}の表現を使い分けといっしょに覚える</li>
       <li><b>質疑応答</b>：英語の質問に英語で答えて、会話を続ける（APIキー不要）</li>
       <li><b>AI会話</b>：AIと自由に英語で話す</li>
     </ol>
     ${micNotice()}
     <div class="btn-row">
       <a class="btn primary" href="#talk/qa/all">🗣️ 英語で質疑応答（キー不要）</a>
+      <a class="btn" href="#talk/bank">📚 表現集を見る</a>
       <a class="btn" href="#talk/ai">🤖 AIと英語で会話する</a>
       <a class="btn" href="#talk/practice/all/10">🎤 ランダムに10フレーズ話す</a>
       ${all.some(talkWeak) ? `<a class="btn" href="#talk/practice/weak/10">苦手フレーズを練習</a>` : ''}
@@ -115,6 +118,7 @@ function talkPractice(target, n, el) {
   let pool;
   if (target === 'weak') pool = talkAll().filter(talkWeak);
   else if (target === 'all') pool = talkAll();
+  else if (target.startsWith('bank-')) pool = bankPracticeItems(target.slice(5), bankLv());
   else pool = (talkScene(target) || { phrases: [] }).phrases;
   // 未練習 → 苦手 → 習得済みの順に優先
   const rank = p => talkMastered(p) ? 2 : talkStat(p.id).last ? 1 : 0;
@@ -124,21 +128,23 @@ function talkPractice(target, n, el) {
     return;
   }
   const scene = talkScene(target);
-  const title = scene ? `${scene.icon} ${scene.name}` : target === 'weak' ? '苦手フレーズ' : 'ランダム';
+  const bank = target.startsWith('bank-') ? bankCat(target.slice(5)) : null;   // 表現集の分類
+  const title = scene ? `${scene.icon} ${scene.name}` : bank ? `📚 ${bank.icon} ${bank.name}` : target === 'weak' ? '苦手フレーズ' : 'ランダム';
+  const backHref = scene ? '#talk/scene/' + scene.id : bank ? '#talk/bank/' + bank.id : '#talk';
   let i = 0;
   const results = [];
 
   function render() {
-    const p = qs[i], sc = talkScene(p.scene);
+    const p = qs[i], sc = talkScene(p.scene) || (bank ? { icon: bank.icon, name: bank.name } : { icon: '💬', name: '英会話' });
     let best = 0, rated = null, recUrl = null;
     Mic.stop();
     el.innerHTML = `
-    <div class="quiz-head"><a href="${scene ? '#talk/scene/' + scene.id : '#talk'}" class="back">← 戻る</a><span>${U.esc(title)}</span><span>${i + 1} / ${qs.length}</span></div>
+    <div class="quiz-head"><a href="${backHref}" class="back">← 戻る</a><span>${U.esc(title)}</span><span>${i + 1} / ${qs.length}</span></div>
     <div class="progress"><i style="width:${(i / qs.length) * 100}%"></i></div>
     <div class="card quiz talk-q">
       <div class="qmeta"><span class="pill">${sc.icon} ${U.esc(sc.name)}</span>${talkWeak(p) ? '<span class="pill weak">苦手</span>' : ''}</div>
       <p class="talk-ja">${U.esc(p.ja)}</p>
-      <p class="qinst">この日本語を英語で言ってみましょう</p>
+      <p class="qinst">この日本語を英語で言ってみましょう${p.alts && p.alts.length ? '（同じ意味の別の言い方でもOK）' : ''}</p>
       <div class="btn-row talk-controls">
         ${Mic.supported() ? '<button type="button" class="btn primary mic-btn" id="micBtn">🎤 話す</button>' : ''}
         <button type="button" class="btn" id="hintBtn">💡 ヒント</button>
@@ -193,13 +199,16 @@ function talkPractice(target, n, el) {
         onresult: (alts, isFinal) => {
           if (!isFinal) { heard.innerHTML = `<span class="listening">● ${U.esc(alts[0])}</span>`; return; }
           finalDone = true;
-          const tries = alts.map(a => ({ a, r: compareSpeech(p.en, a) })).sort((x, y) => y.r.score - x.r.score);
-          const { a, r } = tries[0];
+          // 表現集の問題は、同じまとまりの別の言い方で答えても正解にする
+          const targets = [p.en, ...(p.alts || [])];
+          const tries = alts.flatMap(a => targets.map(tg => ({ a, tg, r: compareSpeech(tg, a) }))).sort((x, y) => y.r.score - x.r.score);
+          const { a, r, tg } = tries[0];
           best = Math.max(best, r.score);
           const verdict = r.score >= 90 ? ['ok', '完璧！'] : r.score >= 70 ? ['ok', 'いいね！ほぼ言えています'] : r.score >= 40 ? ['mid', 'おしい！もう一度'] : ['ng', 'もう一度チャレンジ'];
           heard.innerHTML = `
             <div class="heard-head ${verdict[0]}"><b>${verdict[1]}</b><span>${r.score}点</span></div>
             <div class="small">聞き取った英語：<span class="en">${U.esc(a)}</span></div>
+            ${tg !== p.en ? `<div class="small">👍 別の言い方「<span class="en">${U.esc(tg)}</span>」として判定しました</div>` : ''}
             <div class="word-check en">${r.words.map(w => `<span class="${w.ok ? 'hit' : 'miss'}">${U.esc(w.w)}</span>`).join(' ')}</div>
             <div class="small muted">赤い単語が言えていない（聞き取れなかった）部分です。</div>`;
           Sound.answer(r.score >= 70);
@@ -259,7 +268,7 @@ function talkPractice(target, n, el) {
       <div class="btn-row">
         ${results.some(r => !r.ok) ? '<a class="btn" href="#talk/practice/weak/10">苦手フレーズを練習</a>' : ''}
         <a class="btn" href="#talk/practice/${target}/${n}">もう一度</a>
-        <a class="btn" href="#talk">場面一覧</a>
+        <a class="btn" href="${bank ? '#talk/bank/' + bank.id : '#talk'}">${bank ? '表現集に戻る' : '場面一覧'}</a>
       </div>
     </div>
     <div class="card"><h2>練習したフレーズ</h2>
